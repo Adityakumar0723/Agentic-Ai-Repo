@@ -4,6 +4,8 @@ info:
   description: A Node.js/Express backend that fetches information directly from Wikipedia (search, summary, full article content, random articles).
   version: 1.0.0
 servers:
+  - url: https://serverless.on-demand.io/apps/agentic-ai
+    description: Live deployed server
   - url: http://localhost:5000
     description: Local development server
 
