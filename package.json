@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A Node.js/Express backend agent that fetches full information from Wikipedia (search, summary, full content, random articles).",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"

@@ -1,0 +1,218 @@
+openapi: 3.0.3
+info:
+  title: Wikipedia Agent API
+  description: A Node.js/Express backend that fetches information directly from Wikipedia (search, summary, full article content, random articles).
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+
+paths:
+  /:
+    get:
+      summary: API info / health check
+      operationId: getApiInfo
+      responses:
+        "200":
+          description: API metadata and available endpoints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: Wikipedia Agent API
+                  status:
+                    type: string
+                    example: running
+                  endpoints:
+                    type: object
+                    additionalProperties:
+                      type: string
+
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/wikipedia/search:
+    get:
+      summary: Search Wikipedia articles
+      operationId: searchArticles
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+          example: Artificial Intelligence
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of results to return
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  count:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SearchResult"
+        "400":
+          description: Missing required query param
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/wikipedia/summary/{title}:
+    get:
+      summary: Get a short summary of a Wikipedia article
+      operationId: getSummary
+      parameters:
+        - name: title
+          in: path
+          required: true
+          description: Wikipedia article title
+          schema:
+            type: string
+          example: India
+      responses:
+        "200":
+          description: Article summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Summary"
+        "404":
+          description: Article not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/wikipedia/page/{title}:
+    get:
+      summary: Get the full content of a Wikipedia article
+      operationId: getFullPage
+      parameters:
+        - name: title
+          in: path
+          required: true
+          description: Wikipedia article title
+          schema:
+            type: string
+          example: India
+      responses:
+        "200":
+          description: Full article content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+        "404":
+          description: Article not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/wikipedia/random:
+    get:
+      summary: Get the full content of a random Wikipedia article
+      operationId: getRandomArticle
+      responses:
+        "200":
+          description: Full content of a randomly selected article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page"
+
+components:
+  schemas:
+    SearchResult:
+      type: object
+      properties:
+        title:
+          type: string
+        snippet:
+          type: string
+        pageId:
+          type: integer
+        wordCount:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    Summary:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        extract:
+          type: string
+        thumbnail:
+          type: string
+          nullable: true
+        image:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        lang:
+          type: string
+
+    Page:
+      type: object
+      properties:
+        pageId:
+          type: integer
+        title:
+          type: string
+        url:
+          type: string
+        content:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        thumbnail:
+          type: string
+          nullable: true
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
