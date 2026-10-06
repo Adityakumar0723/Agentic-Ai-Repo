@@ -2,7 +2,18 @@
 
 > 🥇 **This is the first agent in the Agentic-Ai-Repo.**
 
-A lightweight Node.js + Express backend agent that talks directly to Wikipedia. Give it a topic and it searches, summarizes, and pulls the full article content back for you — no scraping, no manual lookups. Built as a clean, self-contained reference agent: a real external API wired up behind a simple REST interface, containerized, documented with an OpenAPI schema, and deployed live.
+**Wikipedia Agent** is a backend that turns any free-text query into real, structured Wikipedia knowledge — no scraping, no manual lookups, no copy-pasting from the browser.
+
+Type literally anything — a person, a place, an event, a concept, even a vague or misspelled phrase — and the agent:
+
+1. **Searches** Wikipedia for the articles that best match the query (`/search`)
+2. **Resolves** the right one and pulls a clean, short **summary** with description, thumbnail, and link (`/summary/:title`)
+3. **Extracts the full article** — complete text, categories, canonical URL — when you need the whole page, not just the gist (`/page/:title`)
+4. Can also hand back a **random article** for discovery or testing (`/random`)
+
+Every response is plain JSON straight from Wikipedia's own REST and Action APIs, so the data is always accurate, current, and sourced directly — never paraphrased or hallucinated.
+
+Built as a clean, self-contained reference agent: a real external API wired up behind a simple REST interface, containerized with Docker, documented with a full OpenAPI schema, and deployed live.
 
 **Live:** https://serverless.on-demand.io/apps/agentic-ai
 
