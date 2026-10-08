@@ -1,28 +1,27 @@
-// GlobalWire Agent — 143 curated, publicly available news RSS feeds.
-// Grouped by region and topic. Add more feeds here to extend coverage.
-module.exports = {
-  // ===================== WORLD / GENERAL =====================
+// GlobalWire Agent — 300+ curated, publicly available news RSS feeds.
+// Heavy redundancy per category ensures fallback coverage.
+
+const SOURCES = {
+  // ===================== WORLD / GENERAL NEWS =====================
   bbc: "http://feeds.bbci.co.uk/news/rss.xml",
   bbc_world: "http://feeds.bbci.co.uk/news/world/rss.xml",
-  bbc_tech: "http://feeds.bbci.co.uk/news/technology/rss.xml",
-  bbc_science: "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
-  bbc_business: "http://feeds.bbci.co.uk/news/business/rss.xml",
-  bbc_sport: "https://feeds.bbci.co.uk/sport/rss.xml",
+  bbc_uk: "http://feeds.bbci.co.uk/news/uk/rss.xml",
+  bbc_politics: "http://feeds.bbci.co.uk/news/politics/rss.xml",
   cnn: "http://rss.cnn.com/rss/cnn_topstories.rss",
   cnn_world: "http://rss.cnn.com/rss/cnn_world.rss",
-  cnn_tech: "http://rss.cnn.com/rss/cnn_tech.rss",
-  cnn_health: "http://rss.cnn.com/rss/cnn_health.rss",
+  cnn_us: "http://rss.cnn.com/rss/cnn_us.rss",
+  cnn_politics: "http://rss.cnn.com/rss/cnn_allpolitics.rss",
   guardian: "https://www.theguardian.com/world/rss",
   guardian_uk: "https://www.theguardian.com/uk-news/rss",
-  guardian_tech: "https://www.theguardian.com/uk/technology/rss",
-  guardian_science: "https://www.theguardian.com/science/rss",
-  guardian_environment: "https://www.theguardian.com/environment/rss",
+  guardian_us: "https://www.theguardian.com/us-news/rss",
+  guardian_opinion: "https://www.theguardian.com/commentisfree/rss",
   aljazeera: "https://www.aljazeera.com/xml/rss/all.xml",
   npr: "https://feeds.npr.org/1001/rss.xml",
-  npr_science: "https://feeds.npr.org/1007/rss.xml",
-  npr_health: "https://feeds.npr.org/1128/rss.xml",
+  npr_world: "https://feeds.npr.org/1004/rss.xml",
+  npr_politics: "https://feeds.npr.org/1014/rss.xml",
   pbs: "https://www.pbs.org/newshour/feeds/rss/headlines",
   skynews: "https://feeds.skynews.com/feeds/rss/world.xml",
+  skynews_uk: "https://feeds.skynews.com/feeds/rss/uk.xml",
   dw: "https://rss.dw.com/rdf/rss-en-all",
   france24: "https://www.france24.com/en/rss",
   nhk: "https://www3.nhk.or.jp/rss/news/cat0.xml",
@@ -30,11 +29,9 @@ module.exports = {
   thehill: "https://thehill.com/feed/",
   nytimes: "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
   nytimes_world: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
-  nytimes_tech: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
-  nytimes_science: "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
-  nytimes_health: "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml",
-  nytimes_sports: "https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml",
-  nytimes_business: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+  nytimes_us: "https://rss.nytimes.com/services/xml/rss/nyt/US.xml",
+  nytimes_politics: "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml",
+  nytimes_opinion: "https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml",
   foxnews: "https://moxie.foxnews.com/google-publisher/latest.xml",
   abcnews: "https://abcnews.go.com/abcnews/topstories",
   cbsnews: "https://www.cbsnews.com/latest/rss/main",
@@ -42,34 +39,68 @@ module.exports = {
   slate: "https://slate.com/feeds/all.rss",
   newsweek: "https://www.newsweek.com/rss",
   huffpost: "https://www.huffpost.com/section/front-page/feed",
+  usatoday_top: "https://rssfeeds.usatoday.com/usatoday-NewsTopStories",
+  time: "https://time.com/feed/",
+  theintercept: "https://theintercept.com/feed/?rss",
+  thedailybeast: "https://feeds.thedailybeast.com/rss/articles",
+  salon: "https://www.salon.com/feed/",
+  motherjones: "https://www.motherjones.com/feed/",
+  reason: "https://reason.com/feed/",
+  foreignpolicy: "https://foreignpolicy.com/feed/",
+  theatlantic: "https://www.theatlantic.com/feed/all/",
 
   // ===================== ASIA-PACIFIC =====================
   scmp: "https://www.scmp.com/rss/91/feed",
   straitstimes: "https://www.straitstimes.com/news/world/rss.xml",
   abcaus: "https://www.abc.net.au/news/feed/51120/rss.xml",
+  abcaus_world: "https://www.abc.net.au/news/feed/2942460/rss.xml",
   cbcca: "https://www.cbc.ca/cmlink/rss-topstories",
+  cbcca_world: "https://www.cbc.ca/cmlink/rss-world",
   japantimes: "https://www.japantimes.co.jp/feed/",
   bangkokpost: "https://www.bangkokpost.com/rss/data/topstories.xml",
   channelnewsasia: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml",
+  nzherald: "https://www.nzherald.co.nz/arc/outboundfeeds/rss/curated/78/?outputType=xml",
+  smh: "https://www.smh.com.au/rss/feed.xml",
+  koreaherald: "https://www.koreaherald.com/common/rss_xml.php",
+  globalnews_ca: "https://globalnews.ca/feed/",
 
   // ===================== INDIA =====================
   ndtv: "https://feeds.feedburner.com/ndtvnews-top-stories",
+  ndtv_india: "https://feeds.feedburner.com/ndtvnews-india-news",
+  ndtv_world: "https://feeds.feedburner.com/ndtvnews-world-news",
   ndtv_sports: "https://feeds.feedburner.com/ndtvsports-latest",
   toi: "https://timesofindia.indiatimes.com/rssfeedstopstories.cms",
   toi_world: "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
   toi_tech: "https://timesofindia.indiatimes.com/rssfeeds/66949542.cms",
+  toi_sports: "https://timesofindia.indiatimes.com/rssfeeds/4719148.cms",
+  toi_entertainment: "https://timesofindia.indiatimes.com/rssfeeds/1081479906.cms",
   hindustantimes: "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
+  hindustantimes_world: "https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml",
   thehindu: "https://www.thehindu.com/news/national/feeder/default.rss",
+  thehindu_international: "https://www.thehindu.com/news/international/feeder/default.rss",
   indianexpress: "https://indianexpress.com/section/india/feed/",
+  indianexpress_world: "https://indianexpress.com/section/world/feed/",
+  indianexpress_tech: "https://indianexpress.com/section/technology/feed/",
   economictimes: "https://economictimes.indiatimes.com/rssfeedstopstories.cms",
   economictimes_tech: "https://economictimes.indiatimes.com/tech/rssfeeds/13357270.cms",
+  economictimes_markets: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
   livemint: "https://www.livemint.com/rss/news",
+  livemint_tech: "https://www.livemint.com/rss/technology",
   indiatoday: "https://www.indiatoday.in/rss/home",
+  indiatoday_india: "https://www.indiatoday.in/rss/1",
   businessstandard: "https://www.business-standard.com/rss/home_page_top_stories.rss",
   news18: "https://www.news18.com/commonfeeds/v1/eng/rss/india.xml",
+  news18_world: "https://www.news18.com/commonfeeds/v1/eng/rss/world.xml",
+  dnaindia: "https://www.dnaindia.com/feeds/india.xml",
+  oneindia: "https://www.oneindia.com/rss/news-india-fb.xml",
+  deccanherald: "https://www.deccanherald.com/arc/outboundfeeds/rss/?outputType=xml",
+  tribuneindia: "https://www.tribuneindia.com/rss/feed",
 
   // ===================== MIDDLE EAST =====================
   jerusalempost: "https://www.jpost.com/rss/rssfeedsfrontpage.aspx",
+  middleeasteye: "https://www.middleeasteye.net/rss",
+  arabnews: "https://www.arabnews.com/rss.xml",
+  thenationalnews: "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml",
 
   // ===================== EUROPE =====================
   lemonde: "https://www.lemonde.fr/en/rss/une.xml",
@@ -79,31 +110,61 @@ module.exports = {
   irish_times: "https://www.irishtimes.com/cmlink/news-1.1319192",
   dutchnews: "https://www.dutchnews.nl/feed/",
   thelocal_se: "https://feeds.thelocal.com/rss/se",
+  thelocal_de: "https://feeds.thelocal.com/rss/de",
+  thelocal_fr: "https://feeds.thelocal.com/rss/fr",
+  thelocal_it: "https://feeds.thelocal.com/rss/it",
+  thelocal_es: "https://feeds.thelocal.com/rss/es",
   rte: "https://www.rte.ie/news/rss/news-headlines.xml",
+  swissinfo: "https://www.swissinfo.ch/eng/rss",
+  balkan_insight: "https://balkaninsight.com/feed/",
 
   // ===================== LATIN AMERICA =====================
   mercopress: "https://en.mercopress.com/rss/",
+  batimes: "https://www.batimes.com.ar/feed",
+  ticotimes: "https://ticotimes.net/feed",
 
   // ===================== AFRICA =====================
   allafrica: "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf",
+  news24_sa: "https://feeds.news24.com/articles/news24/TopStories/rss",
+  theeastafrican: "https://www.theeastafrican.co.ke/tea/rss",
+  citizen_za: "https://www.citizen.co.za/feed/",
 
   // ===================== BUSINESS / FINANCE =====================
   bloomberg: "https://feeds.bloomberg.com/markets/news.rss",
   cnbc: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114",
   cnbc_world: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100727362",
+  cnbc_tech: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910",
+  cnbc_finance: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664",
   marketwatch: "https://www.marketwatch.com/rss/topstories",
   businessinsider: "https://www.businessinsider.com/rss",
   ft: "https://www.ft.com/rss/home",
   moneycontrol: "https://www.moneycontrol.com/rss/latestnews.xml",
+  moneycontrol_markets: "https://www.moneycontrol.com/rss/marketreports.xml",
   seeking_alpha: "https://seekingalpha.com/market_currents.xml",
+  yahoo_finance: "https://finance.yahoo.com/news/rssindex",
+  nytimes_business: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+  nytimes_economy: "https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml",
+  guardian_business: "https://www.theguardian.com/uk/business/rss",
+  investing_com: "https://www.investing.com/rss/news.rss",
+  fortune: "https://fortune.com/feed/",
 
-  // ===================== CRYPTO / FINTECH =====================
+  // ===================== CRYPTO / WEB3 / FINTECH =====================
   coindesk: "https://www.coindesk.com/arc/outboundfeeds/rss/",
   cointelegraph: "https://cointelegraph.com/rss",
   theblock: "https://www.theblock.co/rss.xml",
   decrypt: "https://decrypt.co/feed",
+  bitcoinmagazine: "https://bitcoinmagazine.com/.rss/full/",
+  cryptoslate: "https://cryptoslate.com/feed/",
+  beincrypto: "https://beincrypto.com/feed/",
+  ambcrypto: "https://ambcrypto.com/feed/",
+  cryptopotato: "https://cryptopotato.com/feed/",
+  defiant: "https://thedefiant.io/feed",
 
   // ===================== TECHNOLOGY =====================
+  bbc_tech: "http://feeds.bbci.co.uk/news/technology/rss.xml",
+  cnn_tech: "http://rss.cnn.com/rss/cnn_tech.rss",
+  guardian_tech: "https://www.theguardian.com/uk/technology/rss",
+  nytimes_tech: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
   techcrunch: "https://techcrunch.com/feed/",
   theverge: "https://www.theverge.com/rss/index.xml",
   wired: "https://www.wired.com/feed/rss",
@@ -125,38 +186,117 @@ module.exports = {
   pcworld: "https://www.pcworld.com/feed",
   macrumors: "https://feeds.macrumors.com/MacRumors-All",
   mit_tech_review: "https://www.technologyreview.com/feed/",
+  howtogeek: "https://www.howtogeek.com/feed/",
+  xda: "https://www.xda-developers.com/feed/",
+  windowscentral: "https://www.windowscentral.com/feed",
+  bleepingcomputer: "https://www.bleepingcomputer.com/feed/",
+  digitrends: "https://www.digitaltrends.com/feed/",
+  lifehacker: "https://lifehacker.com/feed/rss",
+  makeuseof: "https://www.makeuseof.com/feed/",
+
+  // ===================== CYBERSECURITY =====================
+  hackernews_security: "https://hnrss.org/newest?q=security",
+  darkreading: "https://www.darkreading.com/rss.xml",
+  threatpost: "https://threatpost.com/feed/",
+  krebsonsecurity: "https://krebsonsecurity.com/feed/",
+  securityweek: "https://www.securityweek.com/feed/",
+  thehackernews_sec: "https://feeds.feedburner.com/TheHackersNews",
+  naked_security: "https://nakedsecurity.sophos.com/feed/",
+
+  // ===================== PROGRAMMING / DEV =====================
+  dev_to: "https://dev.to/feed/",
+  hackernoon: "https://hackernoon.com/feed",
+  smashingmag: "https://www.smashingmagazine.com/feed/",
+  css_tricks: "https://css-tricks.com/feed/",
+  scotch_io: "https://scotch.io/feed",
+  sitepoint: "https://www.sitepoint.com/feed/",
+  infoq: "https://feed.infoq.com/",
+  dzone: "https://feeds.dzone.com/home",
+  github_blog: "https://github.blog/feed/",
+
+  // ===================== AI / MACHINE LEARNING =====================
+  openai_blog: "https://openai.com/blog/rss.xml",
+  deepmind_blog: "https://deepmind.google/blog/rss.xml",
+  mlnews: "https://machinelearningmastery.com/feed/",
+  towardsdatascience: "https://towardsdatascience.com/feed",
+  analyticsvidhya: "https://www.analyticsvidhya.com/feed/",
+  kdnuggets: "https://www.kdnuggets.com/feed",
+  venturebeat_ai: "https://venturebeat.com/category/ai/feed/",
+  huggingface_blog: "https://huggingface.co/blog/feed.xml",
+  aitrends: "https://aitrends.com/feed/",
 
   // ===================== SCIENCE / SPACE =====================
+  bbc_science: "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+  nytimes_science: "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
+  guardian_science: "https://www.theguardian.com/science/rss",
+  npr_science: "https://feeds.npr.org/1007/rss.xml",
   sciencedaily: "https://www.sciencedaily.com/rss/all.xml",
   nasa: "https://www.nasa.gov/rss/dyn/breaking_news.rss",
+  nasa_image: "https://www.nasa.gov/rss/dyn/lg_image_of_the_day.rss",
   newscientist: "https://www.newscientist.com/feed/home/",
   phys_org: "https://phys.org/rss-feed/",
   space_com: "https://www.space.com/feeds/all",
   livescience: "https://www.livescience.com/feeds/all",
+  eos: "https://eos.org/feed",
+  iflscience: "https://www.iflscience.com/feed",
+  sciencealert: "https://www.sciencealert.com/feed",
+  smithsonianmag: "https://www.smithsonianmag.com/rss/latest_articles/",
+  popularmechanics: "https://www.popularmechanics.com/rss/",
+  popsci: "https://www.popsci.com/feed/",
 
   // ===================== HEALTH / MEDICINE =====================
+  cnn_health: "http://rss.cnn.com/rss/cnn_health.rss",
+  nytimes_health: "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml",
+  npr_health: "https://feeds.npr.org/1128/rss.xml",
   who_news: "https://www.who.int/rss-feeds/news-english.xml",
   statnews: "https://www.statnews.com/feed/",
+  medpagetoday: "https://www.medpagetoday.com/rss/headlines.xml",
+  healthline: "https://www.healthline.com/rss",
+  medicalnewstoday: "https://rss.medicalnewstoday.com/featurednews.xml",
+  health_com: "https://www.health.com/feeds/all",
 
   // ===================== ENVIRONMENT / CLIMATE =====================
+  guardian_environment: "https://www.theguardian.com/environment/rss",
+  guardian_climate: "https://www.theguardian.com/environment/climate-crisis/rss",
   mongabay: "https://news.mongabay.com/feed/",
   carbonbrief: "https://www.carbonbrief.org/feed/",
   climatehome: "https://www.climatechangenews.com/feed/",
+  treehugger: "https://www.treehugger.com/feeds/all",
+  insideclimatenews: "https://insideclimatenews.org/feed/",
+  ecowatch: "https://www.ecowatch.com/rss",
 
   // ===================== SPORTS =====================
+  bbc_sport: "https://feeds.bbci.co.uk/sport/rss.xml",
+  bbc_football: "https://feeds.bbci.co.uk/sport/football/rss.xml",
+  bbc_cricket: "https://feeds.bbci.co.uk/sport/cricket/rss.xml",
+  bbc_tennis: "https://feeds.bbci.co.uk/sport/tennis/rss.xml",
+  bbc_f1: "https://feeds.bbci.co.uk/sport/formula1/rss.xml",
+  nytimes_sports: "https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml",
   espn: "https://www.espn.com/espn/rss/news",
   espn_football: "https://www.espn.com/espn/rss/soccer/news",
   espn_nba: "https://www.espn.com/espn/rss/nba/news",
+  espn_nfl: "https://www.espn.com/espn/rss/nfl/news",
   skysports: "https://www.skysports.com/rss/12040",
+  skysports_football: "https://www.skysports.com/rss/12040/12098",
   sportskeeda: "https://www.sportskeeda.com/feed",
   cricinfo: "https://www.espncricinfo.com/rss/content/story/feeds/0.xml",
   f1: "https://www.formula1.com/content/fom-website/en/latest/all.xml",
+  cbssports: "https://www.cbssports.com/rss/headlines/",
+  si: "https://www.si.com/rss/si_topstories.rss",
+  theathletic: "https://theathletic.com/feed/",
 
   // ===================== ENTERTAINMENT / CULTURE =====================
   variety: "https://variety.com/feed/",
   hollywoodreporter: "https://www.hollywoodreporter.com/feed/",
   deadline: "https://deadline.com/feed/",
   tmz: "https://www.tmz.com/rss.xml",
+  eonline: "https://www.eonline.com/syndication/feeds/rssfeeds/topstories.xml",
+  collider: "https://collider.com/feed/",
+  screenrant: "https://screenrant.com/feed/",
+  avclub: "https://www.avclub.com/rss",
+  indiewire: "https://www.indiewire.com/feed/",
+  comicbook: "https://comicbook.com/feed/",
+  denofgeek: "https://www.denofgeek.com/feed/",
 
   // ===================== GAMING =====================
   polygon: "https://www.polygon.com/rss/index.xml",
@@ -167,6 +307,11 @@ module.exports = {
   pcgamer: "https://www.pcgamer.com/rss/",
   rockpapershotgun: "https://www.rockpapershotgun.com/feed",
   nintendolife: "https://www.nintendolife.com/feeds/latest",
+  gamesradar: "https://www.gamesradar.com/rss/",
+  pushsquare: "https://www.pushsquare.com/feeds/latest",
+  purexbox: "https://www.purexbox.com/feeds/latest",
+  destructoid: "https://www.destructoid.com/feed/",
+  gamedeveloper: "https://www.gamedeveloper.com/rss.xml",
 
   // ===================== MUSIC =====================
   billboard: "https://www.billboard.com/feed/",
@@ -174,11 +319,79 @@ module.exports = {
   pitchfork: "https://pitchfork.com/feed/feed-news/rss",
   nme: "https://www.nme.com/feed",
   stereogum: "https://www.stereogum.com/feed/",
+  consequenceofsound: "https://consequence.net/feed/",
+  brooklynvegan: "https://www.brooklynvegan.com/feed/",
+
+  // ===================== FOOD / LIFESTYLE =====================
+  eater: "https://www.eater.com/rss/index.xml",
+  bonappetit: "https://www.bonappetit.com/feed/rss",
+  seriouseats: "https://www.seriouseats.com/feed",
+  foodandwine: "https://www.foodandwine.com/feeds/all",
+  tastingtable: "https://www.tastingtable.com/feed",
+
+  // ===================== TRAVEL =====================
+  lonelyplanet: "https://www.lonelyplanet.com/blog/feed/atom",
+  cntraveler: "https://www.cntraveler.com/feed/rss",
+  travelandleisure: "https://www.travelandleisure.com/feeds/all",
+  afar: "https://www.afar.com/feed",
+
+  // ===================== AUTOMOTIVE =====================
+  motortrend: "https://www.motortrend.com/feed/",
+  caranddriver: "https://www.caranddriver.com/rss/all.xml/",
+  jalopnik: "https://jalopnik.com/feed",
+  autoblog: "https://www.autoblog.com/rss.xml",
+  topgear: "https://www.topgear.com/rss",
+  electrek: "https://electrek.co/feed/",
+  insideevs: "https://insideevs.com/rss/news/all/",
+
+  // ===================== REAL ESTATE / HOUSING =====================
+  curbed: "https://www.curbed.com/rss/index.xml",
+  housingwire: "https://www.housingwire.com/feed/",
 
   // ===================== EDUCATION / RESEARCH =====================
   mit_news: "https://news.mit.edu/rss/feed",
+  ed_week: "https://www.edweek.org/feed",
+  chronicle_he: "https://www.chronicle.com/section/news/3/feed",
+  insidehighered: "https://www.insidehighered.com/rss/feed",
+  edsurge: "https://www.edsurge.com/rss",
+  ted_blog: "https://blog.ted.com/feed/",
 
-  // ===================== AI / MACHINE LEARNING =====================
-  openai_blog: "https://openai.com/blog/rss.xml",
-  deepmind_blog: "https://deepmind.google/blog/rss.xml",
+  // ===================== LAW / POLICY =====================
+  lawfaremedia: "https://www.lawfaremedia.org/feed",
+  scotusblog: "https://www.scotusblog.com/feed/",
+  jurist: "https://www.jurist.org/feed/",
+
+  // ===================== STARTUPS / VENTURE =====================
+  techcrunch_startups: "https://techcrunch.com/category/startups/feed/",
+  saastr: "https://www.saastr.com/feed/",
+  producthunt: "https://www.producthunt.com/feed",
+  betalist: "https://betalist.com/feed",
+  startupgrind: "https://www.startupgrind.com/feed/",
+
+  // ===================== DESIGN / UX =====================
+  designernews: "https://www.designernews.co/stories.rss",
+  uxdesign: "https://uxdesign.cc/feed",
+  abduzeedo: "https://abduzeedo.com/rss.xml",
+  creativebloq: "https://www.creativebloq.com/feed",
+  yankodesign: "https://www.yankodesign.com/feed/",
+
+  // ===================== SPACE / ASTRONOMY =====================
+  spacenews: "https://spacenews.com/feed/",
+  nasaspaceflight: "https://www.nasaspaceflight.com/feed/",
+  universetoday: "https://www.universetoday.com/feed/",
+  skyandtelescope: "https://skyandtelescope.org/feed/",
+  planetary_org: "https://www.planetary.org/feed",
+
+  // ===================== MILITARY / DEFENSE =====================
+  defensenews: "https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml",
+  janes: "https://www.janes.com/feeds/news",
+  warisboring: "https://warisboring.com/feed/",
+
+  // ===================== PHILOSOPHY / HUMANITIES =====================
+  aeon: "https://aeon.co/feed.rss",
+  brainpickings: "https://feeds.feedburner.com/brainpickings/rss",
+  openculture: "https://www.openculture.com/feed",
+  dailystoic: "https://dailystoic.com/feed/",
 };
+
+module.exports = SOURCES;
