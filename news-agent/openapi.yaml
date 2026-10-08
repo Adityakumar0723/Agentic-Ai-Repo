@@ -1,10 +1,20 @@
 openapi: 3.0.3
 info:
   title: GlobalWire Agent
-  description: Aggregates live news from 143 verified RSS feeds across 16 categories (world, India, tech, crypto, science, space, health, climate, sports, gaming, music, AI, and more) plus Reddit's public API into one unified, searchable JSON feed.
-  version: 1.0.0
+  description: >-
+    Aggregates live news from 329 verified RSS feeds across 31 categories
+    (world, India, Asia, Middle East, Europe, Latin America, Africa, business,
+    crypto, technology, cybersecurity, programming, AI/ML, science, space,
+    health, climate, sports, entertainment, gaming, music, food, travel,
+    automotive, real estate, education, law, startups, design, defense,
+    philosophy) plus Reddit's public API into one unified, searchable JSON feed.
+    Bulletproof — never crashes, retries failed sources, skips rate-limited feeds
+    gracefully, and includes full source attribution in every response.
+  version: 2.0.0
 servers:
-  - url: http://localhost:5100
+  - url: https://serverless.on-demand.io/apps/agentic-ai
+    description: Production server
+  - url: http://localhost:5000
     description: Local development server
 
 paths:
@@ -38,22 +48,109 @@ paths:
 
   /api/news/sources:
     get:
-      summary: List all configured news sources
+      summary: List all 329 configured news sources with category breakdown
       operationId: listSources
       responses:
         "200":
-          description: List of source keys
+          description: All sources with total count and categories
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  total:
+                    type: integer
+                    description: Total number of RSS feed sources
+                    example: 329
+                  categories:
+                    type: array
+                    description: Category breakdown with source counts
+                    items:
+                      $ref: "#/components/schemas/CategoryInfo"
                   sources:
                     type: array
                     items:
+                      $ref: "#/components/schemas/SourceEntry"
+
+  /api/news/categories:
+    get:
+      summary: List all 31 available news categories
+      operationId: listCategories
+      responses:
+        "200":
+          description: List of categories with source counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CategoryInfo"
+
+  /api/news/category/{name}:
+    get:
+      summary: Get latest articles from a specific category (e.g. sports, crypto, ai, gaming)
+      operationId: getCategory
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: "Category name — one of: world, asia, india, middleeast, europe, latam, africa, business, crypto, technology, cybersecurity, programming, ai, science, health, climate, sports, entertainment, gaming, music, food, travel, automotive, realestate, education, law, startups, design, space, defense, philosophy"
+          schema:
+            type: string
+          example: technology
+        - name: limit
+          in: query
+          required: false
+          description: Max articles per source within this category
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Articles from all sources in the specified category
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  category:
+                    type: string
+                  count:
+                    type: integer
+                  sourcesTotal:
+                    type: integer
+                    description: Total sources in this category
+                  sourcesOk:
+                    type: integer
+                    description: Sources that responded successfully
+                  sourcesFailed:
+                    type: integer
+                    description: Sources that failed (skipped gracefully)
+                  articles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Article"
+                  skippedSources:
+                    type: array
+                    description: Sources that failed and were skipped (only present if any failed)
+                    items:
                       type: string
-                example:
-                  sources: [bbc, cnn, reuters, guardian, aljazeera, ndtv, toi, hindustantimes, techcrunch, theverge, wired, hackernews, espn, bloomberg]
+        "404":
+          description: Unknown category
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  availableCategories:
+                    type: array
+                    items:
+                      type: string
 
   /api/news/feed/{source}:
     get:
@@ -63,19 +160,19 @@ paths:
         - name: source
           in: path
           required: true
-          description: One of the keys returned by /api/news/sources
+          description: One of the source keys returned by /api/news/sources
           schema:
             type: string
           example: bbc
       responses:
         "200":
-          description: Latest articles from that source
+          description: Latest articles from that source (returns warning instead of error if source is temporarily unavailable)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/FeedResponse"
         "404":
-          description: Unknown source
+          description: Unknown source key
           content:
             application/json:
               schema:
@@ -83,7 +180,7 @@ paths:
 
   /api/news/all:
     get:
-      summary: Get latest articles aggregated across every configured news source
+      summary: Get latest articles aggregated across all 329 news sources
       operationId: getAllNews
       parameters:
         - name: limit
@@ -95,7 +192,7 @@ paths:
             default: 10
       responses:
         "200":
-          description: Combined list of latest articles from all sources
+          description: Combined list of latest articles from all sources with failure metadata
           content:
             application/json:
               schema:
@@ -103,32 +200,44 @@ paths:
                 properties:
                   count:
                     type: integer
+                  sourcesTotal:
+                    type: integer
+                  sourcesOk:
+                    type: integer
+                  sourcesFailed:
+                    type: integer
                   articles:
                     type: array
                     items:
                       $ref: "#/components/schemas/Article"
+                  skippedSources:
+                    type: array
+                    description: Sources that failed and were skipped (only present if any failed)
+                    items:
+                      type: string
 
   /api/news/search:
     get:
-      summary: Search for a keyword across all news sources and Reddit
+      summary: Search for a keyword across all 329 news sources and Reddit
       operationId: searchNews
       parameters:
         - name: q
           in: query
           required: true
-          description: Search keyword/phrase
+          description: Search keyword or phrase
           schema:
             type: string
           example: artificial intelligence
         - name: limit
           in: query
           required: false
+          description: Max articles per source to scan
           schema:
             type: integer
             default: 15
       responses:
         "200":
-          description: Matching articles and Reddit posts
+          description: Matching articles and Reddit posts with source failure metadata
           content:
             application/json:
               schema:
@@ -138,6 +247,10 @@ paths:
                     type: string
                   count:
                     type: integer
+                  sourcesSearched:
+                    type: integer
+                  sourcesFailed:
+                    type: integer
                   news:
                     type: array
                     items:
@@ -146,6 +259,14 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/RedditPost"
+                  redditWarning:
+                    type: string
+                    description: Present if Reddit API is unavailable
+                  skippedSources:
+                    type: array
+                    description: Sources that failed and were skipped
+                    items:
+                      type: string
         "400":
           description: Missing required query param
           content:
@@ -155,31 +276,34 @@ paths:
 
   /api/news/reddit/{subreddit}:
     get:
-      summary: Get posts from a subreddit (public Reddit API, no auth)
+      summary: Get posts from a subreddit (public Reddit API, no auth needed)
       operationId: getSubreddit
       parameters:
         - name: subreddit
           in: path
           required: true
+          description: Subreddit name (without r/ prefix)
           schema:
             type: string
           example: technology
         - name: limit
           in: query
           required: false
+          description: Number of posts to return
           schema:
             type: integer
             default: 15
         - name: sort
           in: query
           required: false
+          description: Sort order for posts
           schema:
             type: string
             enum: [hot, new, top]
             default: hot
       responses:
         "200":
-          description: Posts from the subreddit
+          description: Posts from the subreddit (returns warning if Reddit is unavailable instead of error)
           content:
             application/json:
               schema:
@@ -193,6 +317,9 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/RedditPost"
+                  warning:
+                    type: string
+                    description: Present if Reddit API blocked the request
 
 components:
   schemas:
@@ -201,6 +328,13 @@ components:
       properties:
         source:
           type: string
+          description: Source key identifier
+        sourceUrl:
+          type: string
+          description: RSS feed URL of the source
+        sourceFeed:
+          type: string
+          description: Human-readable name of the source feed
         title:
           type: string
         link:
@@ -227,6 +361,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Article"
+        warning:
+          type: string
+          description: Present if the source is temporarily unavailable
 
     RedditPost:
       type: object
@@ -249,6 +386,26 @@ components:
         publishedAt:
           type: string
           format: date-time
+
+    CategoryInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Category identifier
+        count:
+          type: integer
+          description: Number of sources in this category
+
+    SourceEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Source key used in /feed/{source}
+        url:
+          type: string
+          description: RSS feed URL
 
     Error:
       type: object
