@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: GlobalWire Agent
-  description: Aggregates live news from major news sites (RSS) and Reddit (public API) into one unified JSON feed.
+  description: Aggregates live news from 143 verified RSS feeds across 16 categories (world, India, tech, crypto, science, space, health, climate, sports, gaming, music, AI, and more) plus Reddit's public API into one unified, searchable JSON feed.
   version: 1.0.0
 servers:
   - url: http://localhost:5100

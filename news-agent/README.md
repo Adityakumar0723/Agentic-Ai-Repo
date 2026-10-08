@@ -2,35 +2,44 @@
 
 > **Second agent in the Agentic-Ai-Repo** (alongside the [Wikipedia Agent](../README.md)).
 
-**GlobalWire** is your personal news wire service — one API call and you get live headlines from **85+ sources across 6 continents**, all unified into a single, clean JSON feed. No API keys. No logins. No scraping hacks. Just publicly available RSS feeds and Reddit's public API, aggregated and searchable in real-time.
+**GlobalWire** is your personal news wire service — one API call and you tap into **143 live news feeds across 6 continents, 16 categories, and every major topic a user could ever search for**. World politics, India, tech, crypto, science, space, health, climate, sports, cricket, F1, gaming, music, entertainment, AI research — it's all here, unified into a single, clean JSON feed. No API keys. No logins. No scraping hacks.
 
-## What it does
+User queries "AI"? Headlines from TechCrunch, Wired, MIT Tech Review, OpenAI Blog, DeepMind Blog, plus 130+ other sources.
+User queries "cricket"? ESPNCricinfo, Sportskeeda, NDTV Sports, BBC Sport, Sky Sports.
+User queries "Bitcoin"? CoinDesk, CoinTelegraph, The Block, Decrypt, Bloomberg, CNBC.
+User queries "climate change"? Guardian Environment, Mongabay, Carbon Brief, Climate Home, BBC Science.
+User queries literally anything? **There's always an answer.**
 
-Ask it anything — "AI", "cricket", "stock market crash", "climate change" — and GlobalWire instantly pulls matching headlines from every major news outlet on the planet. One query, one response, every angle covered.
+## How it works
 
-- **Search across everything** — type a keyword and get matching articles from BBC, CNN, NYT, Al Jazeera, NDTV, TechCrunch, ESPN, Bloomberg, and 75+ more, plus Reddit discussions, all in one response
-- **Drill into a single source** — want just BBC headlines? Just TechCrunch? Just CNBC? Hit the feed endpoint with that source key
-- **Firehose mode** — pull the latest articles from every source at once with `/all`
-- **Reddit integration** — search Reddit or browse any public subreddit (hot/new/top), no auth needed
-- **Always live** — every call hits the real RSS feed in real-time, so you always get the latest published articles
+Every call hits real RSS feeds and Reddit's public API in real-time — no caching, no stale data, always the latest published articles. One `/search` query fans out across all 143 sources + Reddit simultaneously and returns every match.
 
-## Coverage
+## Coverage (143 verified feeds + Reddit)
 
-| Category | Sources |
-|---|---|
-| **World News** | BBC, BBC World, CNN, CNN World, The Guardian, Al Jazeera, NPR, PBS, Sky News, DW, France24, NHK, Axios, The Hill, NYT, NYT World, Fox News, ABC News, CBS News |
-| **Asia-Pacific** | SCMP, Straits Times, ABC Australia, CBC Canada, Japan Times, Bangkok Post |
-| **India** | NDTV, Times of India, Hindustan Times, The Hindu, Indian Express, Economic Times, Livemint, India Today |
-| **Europe** | Le Monde, Der Spiegel, El Pais, Euronews, Irish Times, DutchNews |
-| **Middle East** | Jerusalem Post |
-| **Business & Finance** | Bloomberg, CNBC, CNBC World, MarketWatch, Business Insider, Financial Times, Moneycontrol, Seeking Alpha |
-| **Technology** | TechCrunch, The Verge, Wired, Ars Technica, Engadget, Hacker News, Mashable, ZDNet, Tom's Hardware, Android Central, 9to5Mac, 9to5Google, The Next Web, Gizmodo, CNET, TechRadar |
-| **Science & Space** | Science Daily, NASA, New Scientist, Phys.org, Space.com, Live Science |
-| **Sports** | ESPN, Sky Sports, Sportskeeda |
-| **Entertainment & Culture** | Variety, Hollywood Reporter, Deadline, Polygon, IGN, Kotaku, Billboard, Rolling Stone, Pitchfork |
-| **Reddit** | Any public subreddit (r/worldnews, r/technology, r/india, etc.) |
+| Category | Count | Sources |
+|---|---|---|
+| **World News** | 40 | BBC (6 feeds), CNN (4 feeds), Guardian (5 feeds), Al Jazeera, NPR (3 feeds), PBS, Sky News, DW, France24, NHK, Axios, The Hill, NYT (7 feeds), Fox News, ABC News, CBS News, Vox, Slate, Newsweek, HuffPost |
+| **Asia-Pacific** | 7 | SCMP, Straits Times, ABC Australia, CBC Canada, Japan Times, Bangkok Post, Channel News Asia |
+| **India** | 14 | NDTV (2 feeds), Times of India (3 feeds), Hindustan Times, The Hindu, Indian Express, Economic Times (2 feeds), Livemint, India Today, Business Standard, News18 |
+| **Europe** | 8 | Le Monde, Der Spiegel, El Pais, Euronews, Irish Times, DutchNews, The Local Sweden, RTE Ireland |
+| **Middle East** | 1 | Jerusalem Post |
+| **Latin America** | 1 | MercoPress |
+| **Africa** | 1 | AllAfrica |
+| **Business & Finance** | 8 | Bloomberg, CNBC (2 feeds), MarketWatch, Business Insider, Financial Times, Moneycontrol, Seeking Alpha |
+| **Crypto & Fintech** | 4 | CoinDesk, CoinTelegraph, The Block, Decrypt |
+| **Technology** | 21 | TechCrunch, The Verge, Wired, Ars Technica, Engadget, Hacker News, Mashable, ZDNet, Tom's Hardware, Android Central, 9to5Mac, 9to5Google, The Next Web, Gizmodo, CNET, TechRadar, The Register, Slashdot, PCWorld, MacRumors, MIT Tech Review |
+| **Science & Space** | 6 | Science Daily, NASA, New Scientist, Phys.org, Space.com, Live Science |
+| **Health & Medicine** | 2 | WHO News, STAT News |
+| **Environment & Climate** | 3 | Mongabay, Carbon Brief, Climate Home News |
+| **Sports** | 7 | ESPN (3 feeds), Sky Sports, Sportskeeda, ESPNCricinfo, Formula 1 |
+| **Entertainment** | 4 | Variety, Hollywood Reporter, Deadline, TMZ |
+| **Gaming** | 8 | Polygon, IGN, Kotaku, Eurogamer, GameSpot, PC Gamer, Rock Paper Shotgun, Nintendo Life |
+| **Music** | 5 | Billboard, Rolling Stone, Pitchfork, NME, Stereogum |
+| **Education** | 1 | MIT News |
+| **AI & ML** | 2 | OpenAI Blog, DeepMind Blog |
+| **Reddit** | Any | Any public subreddit (r/worldnews, r/technology, r/india, r/gaming, etc.) |
 
-> **Why no Facebook/Instagram/X?** These platforms block unauthenticated access and scraping violates their Terms of Service. GlobalWire only uses legitimately public feeds. Reddit's public endpoint may also return 403 from data-center IPs — this is Reddit's anti-bot blocking, not a bug.
+> **Why no Facebook/Instagram/X?** These platforms block unauthenticated access and scraping violates their Terms of Service. GlobalWire only uses legitimately public feeds. Reddit's public endpoint may return 403 from data-center IPs — this is Reddit's anti-bot blocking, not a bug.
 
 ## Setup
 
@@ -55,26 +64,35 @@ docker run -p 5100:5100 globalwire-agent
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/health` | Health check |
-| `GET` | `/api/news/sources` | List all configured source keys |
-| `GET` | `/api/news/feed/:source` | Latest articles from one source (e.g. `bbc`, `techcrunch`) |
+| `GET` | `/api/news/sources` | List all 143 configured source keys |
+| `GET` | `/api/news/feed/:source` | Latest articles from one source (e.g. `bbc`, `techcrunch`, `coindesk`) |
 | `GET` | `/api/news/all?limit=<n>` | Latest articles aggregated across every source |
-| `GET` | `/api/news/search?q=<query>&limit=<n>` | Search a keyword across all sources + Reddit |
-| `GET` | `/api/news/reddit/:subreddit?limit=<n>&sort=<hot\|new\|top>` | Posts from a subreddit |
+| `GET` | `/api/news/search?q=<query>&limit=<n>` | Search a keyword across all 143 sources + Reddit |
+| `GET` | `/api/news/reddit/:subreddit?limit=<n>&sort=<hot\|new\|top>` | Posts from any public subreddit |
 
 Full request/response schema: [openapi.yaml](openapi.yaml)
 
-## Example
+## Examples
 
 ```bash
-# Search "AI" across all sources + Reddit
+# Search "AI" across all 143 sources + Reddit
 curl "http://localhost:5100/api/news/search?q=ai"
 
 # Get BBC headlines
 curl "http://localhost:5100/api/news/feed/bbc"
 
-# Get everything from every source
+# Get crypto news from CoinDesk
+curl "http://localhost:5100/api/news/feed/coindesk"
+
+# Get everything from every source (5 per source)
 curl "http://localhost:5100/api/news/all?limit=5"
 
 # Browse r/technology
 curl "http://localhost:5100/api/news/reddit/technology?sort=hot&limit=10"
+
+# Search for cricket news
+curl "http://localhost:5100/api/news/search?q=cricket"
+
+# Get climate news
+curl "http://localhost:5100/api/news/feed/mongabay"
 ```
