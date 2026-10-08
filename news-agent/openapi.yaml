@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: NewsPulse Agent
+  title: GlobalWire Agent
   description: Aggregates live news from major news sites (RSS) and Reddit (public API) into one unified JSON feed.
   version: 1.0.0
 servers:

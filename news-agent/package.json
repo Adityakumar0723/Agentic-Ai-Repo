@@ -1,7 +1,7 @@
 {
-  "name": "newspulse-agent",
+  "name": "globalwire-agent",
   "version": "1.0.0",
-  "description": "NewsPulse Agent - aggregates live news from major news sites (RSS) and Reddit (public API) into one unified JSON feed.",
+  "description": "GlobalWire Agent - aggregates live news from major news sites (RSS) and Reddit (public API) into one unified JSON feed.",
   "main": "src/server.js",
   "engines": {
     "node": ">=18"

@@ -1,16 +1,41 @@
-# NewsPulse Agent
+# GlobalWire Agent
 
-> 🥈 **Second agent in the Agentic-Ai-Repo** (alongside the [Wikipedia Agent](../README.md)).
+> **Second agent in the Agentic-Ai-Repo** (alongside the [Wikipedia Agent](../README.md)).
 
-A Node.js + Express backend that aggregates live news from major news outlets' RSS feeds and Reddit's public API into one unified JSON feed. Search across all of it with a single keyword query.
+**GlobalWire** is your personal news wire service — one API call and you get live headlines from **85+ sources across 6 continents**, all unified into a single, clean JSON feed. No API keys. No logins. No scraping hacks. Just publicly available RSS feeds and Reddit's public API, aggregated and searchable in real-time.
 
-**51 verified RSS sources** across world news, India, business/finance, technology, science, sports, and entertainment — BBC, CNN, The Guardian, Al Jazeera, NPR, PBS, Sky News, DW, France 24, NHK, SCMP, Straits Times, ABC Australia, CBC Canada, Axios, The Hill, Fox News, NYT, NDTV, Times of India, Hindustan Times, The Hindu, Indian Express, Economic Times, Livemint, Bloomberg, CNBC, MarketWatch, Business Insider, FT, TechCrunch, The Verge, Wired, Ars Technica, Engadget, Hacker News, Mashable, ZDNet, Science Daily, NASA, New Scientist, ESPN, Sky Sports, Variety, Hollywood Reporter, Polygon, IGN, Jerusalem Post, Le Monde, Der Spiegel, El País — plus any public subreddit. See `src/services/sources.js` for the full list (easy to extend with more feeds).
+## What it does
 
-> **Note on social platforms:** Facebook, Instagram, and X (Twitter) do not expose public, unauthenticated feeds — scraping them without an official paid/authorized API violates their Terms of Service and is actively blocked. This agent sticks to sources that are legitimately public: news RSS feeds and Reddit's public JSON API. Reddit's public endpoint can also rate-limit or block requests from data-center/cloud IPs (common on hosting platforms) — if `/api/news/reddit/:subreddit` returns a 403 in production, it means the host's IP got blocked by Reddit, not a bug in this code.
+Ask it anything — "AI", "cricket", "stock market crash", "climate change" — and GlobalWire instantly pulls matching headlines from every major news outlet on the planet. One query, one response, every angle covered.
+
+- **Search across everything** — type a keyword and get matching articles from BBC, CNN, NYT, Al Jazeera, NDTV, TechCrunch, ESPN, Bloomberg, and 75+ more, plus Reddit discussions, all in one response
+- **Drill into a single source** — want just BBC headlines? Just TechCrunch? Just CNBC? Hit the feed endpoint with that source key
+- **Firehose mode** — pull the latest articles from every source at once with `/all`
+- **Reddit integration** — search Reddit or browse any public subreddit (hot/new/top), no auth needed
+- **Always live** — every call hits the real RSS feed in real-time, so you always get the latest published articles
+
+## Coverage
+
+| Category | Sources |
+|---|---|
+| **World News** | BBC, BBC World, CNN, CNN World, The Guardian, Al Jazeera, NPR, PBS, Sky News, DW, France24, NHK, Axios, The Hill, NYT, NYT World, Fox News, ABC News, CBS News |
+| **Asia-Pacific** | SCMP, Straits Times, ABC Australia, CBC Canada, Japan Times, Bangkok Post |
+| **India** | NDTV, Times of India, Hindustan Times, The Hindu, Indian Express, Economic Times, Livemint, India Today |
+| **Europe** | Le Monde, Der Spiegel, El Pais, Euronews, Irish Times, DutchNews |
+| **Middle East** | Jerusalem Post |
+| **Business & Finance** | Bloomberg, CNBC, CNBC World, MarketWatch, Business Insider, Financial Times, Moneycontrol, Seeking Alpha |
+| **Technology** | TechCrunch, The Verge, Wired, Ars Technica, Engadget, Hacker News, Mashable, ZDNet, Tom's Hardware, Android Central, 9to5Mac, 9to5Google, The Next Web, Gizmodo, CNET, TechRadar |
+| **Science & Space** | Science Daily, NASA, New Scientist, Phys.org, Space.com, Live Science |
+| **Sports** | ESPN, Sky Sports, Sportskeeda |
+| **Entertainment & Culture** | Variety, Hollywood Reporter, Deadline, Polygon, IGN, Kotaku, Billboard, Rolling Stone, Pitchfork |
+| **Reddit** | Any public subreddit (r/worldnews, r/technology, r/india, etc.) |
+
+> **Why no Facebook/Instagram/X?** These platforms block unauthenticated access and scraping violates their Terms of Service. GlobalWire only uses legitimately public feeds. Reddit's public endpoint may also return 403 from data-center IPs — this is Reddit's anti-bot blocking, not a bug.
 
 ## Setup
 
 ```bash
+cd news-agent
 npm install
 cp .env.example .env
 npm start
@@ -21,23 +46,35 @@ Server runs on `http://localhost:5100` by default.
 ### Run with Docker
 
 ```bash
-docker build -t newspulse-agent .
-docker run -p 5100:5100 newspulse-agent
+docker build -t globalwire-agent .
+docker run -p 5100:5100 globalwire-agent
 ```
 
 ## Endpoints
 
-- `GET /health` — health check
-- `GET /api/news/sources` — list all configured news sources
-- `GET /api/news/feed/:source` — latest articles from one source (e.g. `bbc`, `cnn`, `techcrunch`)
-- `GET /api/news/all?limit=<n>` — latest articles aggregated across every source
-- `GET /api/news/search?q=<query>&limit=<n>` — search a keyword across all news sources + Reddit
-- `GET /api/news/reddit/:subreddit?limit=<n>&sort=<hot|new|top>` — posts from a subreddit
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `GET` | `/api/news/sources` | List all configured source keys |
+| `GET` | `/api/news/feed/:source` | Latest articles from one source (e.g. `bbc`, `techcrunch`) |
+| `GET` | `/api/news/all?limit=<n>` | Latest articles aggregated across every source |
+| `GET` | `/api/news/search?q=<query>&limit=<n>` | Search a keyword across all sources + Reddit |
+| `GET` | `/api/news/reddit/:subreddit?limit=<n>&sort=<hot\|new\|top>` | Posts from a subreddit |
 
 Full request/response schema: [openapi.yaml](openapi.yaml)
 
 ## Example
 
 ```bash
-curl "http://localhost:5100/api/news/search?q=artificial+intelligence"
+# Search "AI" across all sources + Reddit
+curl "http://localhost:5100/api/news/search?q=ai"
+
+# Get BBC headlines
+curl "http://localhost:5100/api/news/feed/bbc"
+
+# Get everything from every source
+curl "http://localhost:5100/api/news/all?limit=5"
+
+# Browse r/technology
+curl "http://localhost:5100/api/news/reddit/technology?sort=hot&limit=10"
 ```

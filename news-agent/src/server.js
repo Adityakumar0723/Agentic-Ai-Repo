@@ -11,7 +11,7 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    name: "NewsPulse Agent",
+    name: "GlobalWire Agent",
     status: "running",
     endpoints: {
       sources: "/api/news/sources",
@@ -39,5 +39,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`NewsPulse Agent running on http://localhost:${PORT}`);
+  console.log(`GlobalWire Agent running on http://localhost:${PORT}`);
 });
