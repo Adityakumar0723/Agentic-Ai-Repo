@@ -1,0 +1,257 @@
+openapi: 3.0.3
+info:
+  title: NewsPulse Agent
+  description: Aggregates live news from major news sites (RSS) and Reddit (public API) into one unified JSON feed.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5100
+    description: Local development server
+
+paths:
+  /:
+    get:
+      summary: API info
+      operationId: getApiInfo
+      responses:
+        "200":
+          description: API metadata and available endpoints
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/news/sources:
+    get:
+      summary: List all configured news sources
+      operationId: listSources
+      responses:
+        "200":
+          description: List of source keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sources:
+                    type: array
+                    items:
+                      type: string
+                example:
+                  sources: [bbc, cnn, reuters, guardian, aljazeera, ndtv, toi, hindustantimes, techcrunch, theverge, wired, hackernews, espn, bloomberg]
+
+  /api/news/feed/{source}:
+    get:
+      summary: Get the latest articles from a single news source
+      operationId: getFeed
+      parameters:
+        - name: source
+          in: path
+          required: true
+          description: One of the keys returned by /api/news/sources
+          schema:
+            type: string
+          example: bbc
+      responses:
+        "200":
+          description: Latest articles from that source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponse"
+        "404":
+          description: Unknown source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/news/all:
+    get:
+      summary: Get latest articles aggregated across every configured news source
+      operationId: getAllNews
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Max articles per source
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Combined list of latest articles from all sources
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  articles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Article"
+
+  /api/news/search:
+    get:
+      summary: Search for a keyword across all news sources and Reddit
+      operationId: searchNews
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search keyword/phrase
+          schema:
+            type: string
+          example: artificial intelligence
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+      responses:
+        "200":
+          description: Matching articles and Reddit posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  count:
+                    type: integer
+                  news:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Article"
+                  reddit:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RedditPost"
+        "400":
+          description: Missing required query param
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/news/reddit/{subreddit}:
+    get:
+      summary: Get posts from a subreddit (public Reddit API, no auth)
+      operationId: getSubreddit
+      parameters:
+        - name: subreddit
+          in: path
+          required: true
+          schema:
+            type: string
+          example: technology
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 15
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [hot, new, top]
+            default: hot
+      responses:
+        "200":
+          description: Posts from the subreddit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subreddit:
+                    type: string
+                  count:
+                    type: integer
+                  posts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RedditPost"
+
+components:
+  schemas:
+    Article:
+      type: object
+      properties:
+        source:
+          type: string
+        title:
+          type: string
+        link:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        author:
+          type: string
+          nullable: true
+
+    FeedResponse:
+      type: object
+      properties:
+        source:
+          type: string
+        count:
+          type: integer
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/Article"
+
+    RedditPost:
+      type: object
+      properties:
+        source:
+          type: string
+        title:
+          type: string
+        link:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        author:
+          type: string
+        upvotes:
+          type: integer
+        numComments:
+          type: integer
+        publishedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
