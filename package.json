@@ -1,7 +1,7 @@
 {
-  "name": "wikipedia-agent",
-  "version": "1.0.0",
-  "description": "A Node.js/Express backend agent that fetches full information from Wikipedia (search, summary, full content, random articles).",
+  "name": "agentic-ai",
+  "version": "2.0.0",
+  "description": "Unified backend hosting Wikipedia Agent + GlobalWire Agent (143 news sources + Reddit).",
   "main": "src/server.js",
   "engines": {
     "node": ">=18"
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "axios": "^1.7.7",
+    "rss-parser": "^3.13.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1"
