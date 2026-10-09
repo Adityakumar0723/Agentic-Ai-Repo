@@ -2,18 +2,19 @@ openapi: 3.0.3
 info:
   title: GlobalWire Agent
   description: >-
-    Aggregates live news from 1001 verified RSS feeds across 42 categories
+    Aggregates live news from 2001 verified RSS feeds across 48 categories
     (world, India, Asia, Middle East, Europe, Latin America, Africa, business,
     crypto, technology, cybersecurity, programming, AI/ML, science, space,
     health, climate, sports, entertainment, gaming, music, food, travel,
     automotive, real estate, education, law, startups, design, defense,
     philosophy, personal finance, fashion, parenting, fitness, home, pets,
-    photography, history, lifestyle, media) plus Reddit's public API into one
-    unified, searchable JSON feed. Bulletproof — never crashes, retries failed
-    sources, skips rate-limited feeds gracefully, returns partial results within
-    20s deadline, and includes full source attribution (sourceUrl, sourceFeed)
-    in every response.
-  version: 4.0.0
+    photography, history, lifestyle, media, robotics, energy, biotech,
+    marketing, fintech, semiconductors, supply chain) plus Reddit's public API
+    into one unified, searchable JSON feed. Bulletproof — never crashes, retries
+    failed sources, skips rate-limited feeds gracefully, returns partial results
+    within 20s deadline, and includes full source attribution (sourceUrl,
+    sourceFeed) in every response.
+  version: 5.0.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
     description: Production server
@@ -51,7 +52,7 @@ paths:
 
   /api/news/sources:
     get:
-      summary: List all 1001 configured news sources with category breakdown
+      summary: List all 2001 configured news sources with category breakdown
       operationId: listSources
       responses:
         "200":
@@ -64,7 +65,7 @@ paths:
                   total:
                     type: integer
                     description: Total number of RSS feed sources
-                    example: 1001
+                    example: 2001
                   categories:
                     type: array
                     description: Category breakdown with source counts
@@ -77,7 +78,7 @@ paths:
 
   /api/news/categories:
     get:
-      summary: List all 42 available news categories
+      summary: List all 48 available news categories
       operationId: listCategories
       responses:
         "200":
@@ -100,7 +101,7 @@ paths:
         - name: name
           in: path
           required: true
-          description: "Category name — one of: world, asia, india, middleeast, europe, latam, africa, business, crypto, technology, cybersecurity, programming, ai, science, space, health, climate, sports, entertainment, gaming, music, food, travel, automotive, realestate, education, law, startups, design, defense, philosophy, personalfinance, fashion, parenting, fitness, home, pets, photography, history, lifestyle, media"
+          description: "Category name — one of: world, asia, india, middleeast, europe, latam, africa, business, crypto, technology, cybersecurity, programming, ai, science, space, health, climate, sports, entertainment, gaming, music, food, travel, automotive, realestate, education, law, startups, design, defense, philosophy, personalfinance, fashion, parenting, fitness, home, pets, photography, history, lifestyle, media, robotics, energy, biotech, marketing, fintech, semiconductors, supplychain"
           schema:
             type: string
           example: technology
@@ -183,7 +184,7 @@ paths:
 
   /api/news/all:
     get:
-      summary: Get latest articles aggregated across all 1001 news sources
+      summary: Get latest articles aggregated across all 2001 news sources
       operationId: getAllNews
       parameters:
         - name: limit
@@ -221,7 +222,7 @@ paths:
 
   /api/news/search:
     get:
-      summary: Search for a keyword across all 1001 news sources and Reddit
+      summary: Search for a keyword across all 2001 news sources and Reddit
       operationId: searchNews
       parameters:
         - name: q

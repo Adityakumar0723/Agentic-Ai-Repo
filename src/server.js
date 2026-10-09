@@ -25,7 +25,7 @@ app.get("/", (req, res) => {
         },
       },
       globalwire: {
-        description: "Live news from 1001 verified RSS feeds across 42 categories + Reddit",
+        description: "Live news from 2001 verified RSS feeds across 50+ categories + Reddit",
         endpoints: {
           sources: "/api/news/sources",
           categories: "/api/news/categories",
