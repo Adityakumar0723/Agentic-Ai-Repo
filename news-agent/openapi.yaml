@@ -15,7 +15,7 @@ info:
     "latest on...", "tell me about...", any question about world affairs,
     politics, technology, sports, entertainment, business, markets, crypto,
     AI, science, health, startups, programming, or literally ANY topic —
-    GlobalWire covers 48 categories and 2001 sources so it will have relevant,
+    GlobalWire covers 48 categories and 5006 sources so it will have relevant,
     up-to-date results for virtually any query.
 
 
@@ -47,7 +47,7 @@ info:
     URL), sourceFeed (human-readable name), title, link (original article URL),
     summary, publishedAt, and author. Users always get the source URL to verify
     and read the full article.
-  version: 5.0.0
+  version: 6.0.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
     description: Production server
