@@ -5,14 +5,35 @@ const parser = new Parser({ timeout: 6000 });
 const MAX_SEARCH_MS = 20000;
 const BATCH_SIZE = 50;
 
+function stripHtml(html) {
+  if (!html) return null;
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function normalizeItem(item, source, feedTitle) {
+  const fullContent = item["content:encoded"] || item.content || null;
+  const snippet = item.contentSnippet || item.summary || null;
+  const cleanContent = stripHtml(fullContent);
+
   return {
     source,
     sourceUrl: SOURCES[source] || null,
     sourceFeed: feedTitle || source,
     title: item.title || null,
     link: item.link || null,
-    summary: item.contentSnippet || item.summary || null,
+    summary: snippet || null,
+    content: cleanContent || snippet || null,
     publishedAt: item.isoDate || item.pubDate || null,
     author: item.creator || item.author || null,
   };

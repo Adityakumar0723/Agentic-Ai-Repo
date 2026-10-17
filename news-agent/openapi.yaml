@@ -55,8 +55,12 @@ info:
 
     RESPONSE FORMAT: Every article includes source (key), sourceUrl (RSS feed
     URL), sourceFeed (human-readable name), title, link (original article URL),
-    summary, publishedAt, and author. Users always get the source URL to verify
-    and read the full article.
+    summary (short snippet), content (FULL detailed text extracted from the
+    source — use this to give the user a complete, explained answer instead of
+    just a link), publishedAt, and author. IMPORTANT: Always read the "content"
+    field to provide detailed, comprehensive information to the user. Do NOT
+    just return links — extract and explain the full information from content,
+    then cite the source at the end.
   version: 7.0.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
@@ -389,6 +393,15 @@ components:
         summary:
           type: string
           nullable: true
+          description: Short snippet of the article
+        content:
+          type: string
+          nullable: true
+          description: >-
+            Full detailed text extracted from the source article. Use this field
+            to provide comprehensive, explained answers to users instead of just
+            returning links. This contains the complete information from the RSS
+            feed entry.
         publishedAt:
           type: string
           format: date-time
