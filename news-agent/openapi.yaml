@@ -60,35 +60,54 @@ info:
     just a link), publishedAt, and author.
 
 
-    HOW TO RESPOND TO USERS — MANDATORY RULES:
+    ===== HOW TO RESPOND TO USERS — MANDATORY RULES (NEVER SKIP) =====
 
-    1. READ the "content" field of each relevant article and EXPLAIN the full
-    information in your own words with all details, facts, and context.
+    RULE 1 — FULL DETAILED TEXT: READ the "content" field of EVERY relevant
+    article. Extract ALL facts, details, numbers, quotes, and context from it.
+    Write a thorough, explained answer using this information. The user wants
+    FULL information, not summaries. If the content field has 5 paragraphs of
+    info, include ALL of it in your response. More detail = better.
 
-    2. Do NOT just return titles and links. The user wants FULL explained
-    information extracted from the content field.
+    RULE 2 — NO SHORT ANSWERS: Do NOT just return article titles and links.
+    Do NOT give 1-2 sentence answers. The user expects a COMPLETE, DETAILED
+    explanation of the topic with all available information from the content
+    field. Write long, comprehensive responses.
 
-    3. ALWAYS CITE SOURCES — after explaining information from an article, you
-    MUST show the source attribution in this exact format:
-    📰 Source: [sourceFeed name](link URL)
-    Example: 📰 Source: [BBC News](https://www.bbc.co.uk/news/articles/xyz)
+    RULE 3 — ALWAYS SHOW SOURCE LINKS: After EVERY piece of information from
+    an article, IMMEDIATELY cite the source in this exact format:
+    (Source: [sourceFeed name](link URL))
+    Example: (Source: [BBC News](https://www.bbc.co.uk/news/articles/xyz123))
+    Example: (Source: [TechCrunch](https://techcrunch.com/2024/01/article))
+    The "link" field = original article URL. The "sourceFeed" = source name.
+    BOTH must appear. This is NOT optional.
 
-    4. At the END of your complete response, list ALL sources used:
+    RULE 4 — SOURCE LIST AT END: At the VERY END of your response, ALWAYS
+    add a complete source list:
     ---
-    Sources:
-    - [Source Name 1](article link 1)
-    - [Source Name 2](article link 2)
+    📰 Sources Used:
+    1. [Source Name](article URL)
+    2. [Source Name](article URL)
+    This section is MANDATORY. Never skip it.
 
-    5. The "link" field is the original article URL — ALWAYS show it so users
-    can read the full article. The "sourceFeed" field is the human-readable
-    source name (e.g. "BBC News", "TechCrunch"). Use both together.
+    RULE 5 — NEVER RESPOND WITHOUT SOURCES: If you use information from
+    GlobalWire, you MUST show where it came from. Every single fact must
+    have a source link. A response without source URLs is INVALID.
 
-    6. NEVER give a response without source attribution. Every piece of
-    information MUST be traceable to its source URL.
+    RULE 6 — COMBINE MULTIPLE SOURCES: When multiple articles cover the
+    same topic, combine ALL information from ALL articles into one rich,
+    detailed response. Cite each source individually.
 
-    7. If multiple articles cover the same topic, combine the information and
-    cite ALL sources used.
-  version: 7.1.0
+    RULE 7 — FALLBACK ON FAILURE: If some sources fail (check sourcesFailed
+    count and skippedSources array), the API automatically falls back to
+    other working sources. You will always get results. Never tell the user
+    a source failed — just use the articles that DID come back and cite those.
+
+    RULE 8 — SEARCH IN CONTENT: The search endpoint now searches across
+    article titles, summaries, AND full content text, so even deep mentions
+    of a keyword will be found across all 10002 sources.
+
+    ===== END OF MANDATORY RULES =====
+  version: 7.2.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
     description: Production server
@@ -296,7 +315,10 @@ paths:
 
   /api/news/search:
     get:
-      summary: Search for a keyword across all 10002 news sources and Reddit
+      summary: >-
+        Search for a keyword across all 10002 news sources and Reddit.
+        Returns full article content — read content field for detailed info
+        and ALWAYS cite sources using sourceFeed + link fields
       operationId: searchNews
       parameters:
         - name: q
