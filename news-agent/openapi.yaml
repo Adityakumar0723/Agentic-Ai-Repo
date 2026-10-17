@@ -57,11 +57,38 @@ info:
     URL), sourceFeed (human-readable name), title, link (original article URL),
     summary (short snippet), content (FULL detailed text extracted from the
     source — use this to give the user a complete, explained answer instead of
-    just a link), publishedAt, and author. IMPORTANT: Always read the "content"
-    field to provide detailed, comprehensive information to the user. Do NOT
-    just return links — extract and explain the full information from content,
-    then cite the source at the end.
-  version: 7.0.0
+    just a link), publishedAt, and author.
+
+
+    HOW TO RESPOND TO USERS — MANDATORY RULES:
+
+    1. READ the "content" field of each relevant article and EXPLAIN the full
+    information in your own words with all details, facts, and context.
+
+    2. Do NOT just return titles and links. The user wants FULL explained
+    information extracted from the content field.
+
+    3. ALWAYS CITE SOURCES — after explaining information from an article, you
+    MUST show the source attribution in this exact format:
+    📰 Source: [sourceFeed name](link URL)
+    Example: 📰 Source: [BBC News](https://www.bbc.co.uk/news/articles/xyz)
+
+    4. At the END of your complete response, list ALL sources used:
+    ---
+    Sources:
+    - [Source Name 1](article link 1)
+    - [Source Name 2](article link 2)
+
+    5. The "link" field is the original article URL — ALWAYS show it so users
+    can read the full article. The "sourceFeed" field is the human-readable
+    source name (e.g. "BBC News", "TechCrunch"). Use both together.
+
+    6. NEVER give a response without source attribution. Every piece of
+    information MUST be traceable to its source URL.
+
+    7. If multiple articles cover the same topic, combine the information and
+    cite ALL sources used.
+  version: 7.1.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
     description: Production server
@@ -288,7 +315,10 @@ paths:
             default: 15
       responses:
         "200":
-          description: Matching articles and Reddit posts with source failure metadata
+          description: >-
+            Matching articles and Reddit posts with source failure metadata.
+            IMPORTANT: Use the "content" field for detailed info and ALWAYS
+            cite sources using "sourceFeed" and "link" fields.
           content:
             application/json:
               schema:
@@ -382,14 +412,21 @@ components:
           description: Source key identifier
         sourceUrl:
           type: string
-          description: RSS feed URL of the source
+          description: RSS feed URL of the source (for reference)
         sourceFeed:
           type: string
-          description: Human-readable name of the source feed
+          description: >-
+            Human-readable name of the source (e.g. "BBC News", "TechCrunch",
+            "The Verge"). MUST be shown to the user as the source name when
+            citing this article.
         title:
           type: string
         link:
           type: string
+          description: >-
+            Original article URL — MUST be shown to the user so they can read
+            the full article. Always display this as a clickable link next to
+            the sourceFeed name. Format: [sourceFeed](link)
         summary:
           type: string
           nullable: true
