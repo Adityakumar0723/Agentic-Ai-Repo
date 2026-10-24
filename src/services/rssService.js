@@ -143,9 +143,9 @@ async function searchArticles(query, limitPerSource = 15) {
 
   const matched = articles.filter(
     (item) =>
-      (item.title && item.title.toLowerCase().includes(q)) ||
-      (item.summary && item.summary.toLowerCase().includes(q)) ||
-      (item.content && item.content.toLowerCase().includes(q))
+      (item.title && typeof item.title === "string" && item.title.toLowerCase().includes(q)) ||
+      (item.summary && typeof item.summary === "string" && item.summary.toLowerCase().includes(q)) ||
+      (item.content && typeof item.content === "string" && item.content.toLowerCase().includes(q))
   );
 
   return { results: matched, failed, searched };
