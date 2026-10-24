@@ -1,9 +1,9 @@
 const Parser = require("rss-parser");
 const SOURCES = require("./sources");
 
-const parser = new Parser({ timeout: 6000 });
-const MAX_SEARCH_MS = 20000;
-const BATCH_SIZE = 50;
+const parser = new Parser({ timeout: 4000 });
+const MAX_SEARCH_MS = 25000;
+const BATCH_SIZE = 150;
 
 function stripHtml(html) {
   if (!html) return null;
@@ -45,9 +45,17 @@ async function fetchWithRetry(url, retries = 1) {
       return await parser.parseURL(url);
     } catch (err) {
       if (i === retries) throw err;
-      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+      await new Promise((r) => setTimeout(r, 200));
     }
   }
+}
+
+function fetchOneSourceFast(source) {
+  const feedUrl = SOURCES[source];
+  if (!feedUrl) return Promise.resolve({ source, items: [], ok: false });
+  return parser.parseURL(feedUrl)
+    .then((feed) => ({ source, feed, ok: true }))
+    .catch(() => ({ source, ok: false }));
 }
 
 function fetchOneSource(source) {
@@ -85,12 +93,13 @@ async function fetchSourcesBatch(keys, limitPerSource, deadlineMs) {
     if (timeLeft <= 0) break;
 
     const batchPromises = batch.map((source) => fetchOneSource(source));
-    const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), Math.min(timeLeft, 10000)));
+    const batchTimeout = Math.min(timeLeft, 5000);
+    const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), batchTimeout));
     const raceResult = await Promise.race([Promise.allSettled(batchPromises), timer]);
 
     if (raceResult === "timeout") {
       const settled = await Promise.allSettled(batchPromises.map((p) =>
-        Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false, source: "timeout" }), 500))])
+        Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false, source: "timeout" }), 300))])
       ));
       settled.forEach((result, idx) => {
         const source = batch[idx];
@@ -104,7 +113,7 @@ async function fetchSourcesBatch(keys, limitPerSource, deadlineMs) {
           failed.push({ source, error: "timeout" });
         }
       });
-      break;
+      continue;
     }
 
     raceResult.forEach((result, idx) => {
@@ -125,8 +134,33 @@ async function fetchSourcesBatch(keys, limitPerSource, deadlineMs) {
   return { articles, failed, searched };
 }
 
+const PRIORITY_PREFIXES = [
+  "bbc", "cnn", "guardian", "nytimes", "npr", "aljazeera", "reuters",
+  "washpost", "bloomberg", "cnbc", "wsj", "ft", "techcrunch", "verge",
+  "wired", "arstechnica", "engadget", "zdnet", "cnet", "espn",
+  "ndtv", "toi", "hindu", "hindustantimes", "coindesk", "variety",
+  "reddit", "rsub", "medium", "devto", "fill_bbc", "fill_cnn",
+  "fill_guardian", "fill_nyt", "fill_npr", "fill_espn", "fill_ndtv",
+  "fill_toi", "fill_verge", "fill_wired", "fill_techcrunch",
+  "vr_", "sci2_", "ent2_", "game2_",
+];
+
+function prioritizeKeys(keys) {
+  const priority = [];
+  const rest = [];
+  for (const key of keys) {
+    const kl = key.toLowerCase();
+    if (PRIORITY_PREFIXES.some((p) => kl.startsWith(p))) {
+      priority.push(key);
+    } else {
+      rest.push(key);
+    }
+  }
+  return [...priority, ...rest];
+}
+
 async function fetchAllSources(limitPerSource = 10) {
-  const keys = Object.keys(SOURCES);
+  const keys = prioritizeKeys(Object.keys(SOURCES));
   const deadline = Date.now() + MAX_SEARCH_MS;
   const { articles, failed, searched } = await fetchSourcesBatch(keys, limitPerSource, deadline);
   return { articles, failed, searched };
@@ -138,9 +172,44 @@ async function fetchMultipleSources(keys, limitPerSource = 10) {
 }
 
 async function searchArticles(query, limitPerSource = 15) {
-  const { articles, failed, searched } = await fetchAllSources(limitPerSource);
-  const q = query.toLowerCase();
+  const keys = prioritizeKeys(Object.keys(SOURCES));
+  const deadline = Date.now() + MAX_SEARCH_MS;
+  const articles = [];
+  const failed = [];
+  const searched = [];
 
+  for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+    if (Date.now() >= deadline) break;
+
+    const batch = keys.slice(i, i + BATCH_SIZE);
+    const timeLeft = deadline - Date.now();
+    if (timeLeft <= 0) break;
+
+    const batchPromises = batch.map((source) => fetchOneSourceFast(source));
+    const batchTimeout = Math.min(timeLeft, 5000);
+    const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), batchTimeout));
+    const raceResult = await Promise.race([Promise.allSettled(batchPromises), timer]);
+
+    const results = raceResult === "timeout"
+      ? await Promise.allSettled(batchPromises.map((p) =>
+          Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false }), 200))])))
+      : raceResult;
+
+    results.forEach((result, idx) => {
+      const source = batch[idx];
+      searched.push(source);
+      if (result.status === "fulfilled" && result.value.ok && result.value.feed) {
+        const items = result.value.feed.items
+          .slice(0, limitPerSource)
+          .map((item) => normalizeItem(item, source, result.value.feed.title));
+        articles.push(...items);
+      } else {
+        failed.push({ source, error: "skipped" });
+      }
+    });
+  }
+
+  const q = query.toLowerCase();
   const matched = articles.filter(
     (item) =>
       (item.title && typeof item.title === "string" && item.title.toLowerCase().includes(q)) ||
