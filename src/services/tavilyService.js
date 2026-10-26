@@ -1,33 +1,37 @@
 const axios = require("axios");
 
-const API_KEY = process.env.TAVILY_API_KEY;
 const BASE = "https://api.tavily.com";
 
-function requireKey() {
-  if (!API_KEY) {
+function resolveKey(apiKey) {
+  const key = apiKey || process.env.TAVILY_API_KEY;
+  if (!key) {
     const error = new Error("TAVILY_API_KEY is not configured on the server");
     error.status = 500;
     throw error;
   }
+  return key;
 }
 
-const client = axios.create({
-  baseURL: BASE,
-  timeout: 20000,
-  headers: { "Content-Type": "application/json" },
-});
-
-async function webSearch(query, { maxResults = 10, searchDepth = "basic", timeRange } = {}) {
-  requireKey();
-  const { data } = await client.post("/search", {
-    api_key: API_KEY,
-    query,
-    search_depth: searchDepth,
-    topic: "general",
-    max_results: maxResults,
-    time_range: timeRange,
-    include_answer: false,
-  });
+/**
+ * `apiKey` may be passed per-request (e.g. forwarded from an incoming
+ * TAVILY_API_KEY header) and takes priority over the server's own
+ * TAVILY_API_KEY environment variable.
+ */
+async function webSearch(query, { maxResults = 10, searchDepth = "basic", timeRange, apiKey } = {}) {
+  const key = resolveKey(apiKey);
+  const { data } = await axios.post(
+    `${BASE}/search`,
+    {
+      api_key: key,
+      query,
+      search_depth: searchDepth,
+      topic: "general",
+      max_results: maxResults,
+      time_range: timeRange,
+      include_answer: false,
+    },
+    { timeout: 20000, headers: { "Content-Type": "application/json" } }
+  );
 
   return {
     query: data.query || query,
@@ -42,16 +46,20 @@ async function webSearch(query, { maxResults = 10, searchDepth = "basic", timeRa
   };
 }
 
-async function newsSearch(query, { maxResults = 10, timeRange = "week" } = {}) {
-  requireKey();
-  const { data } = await client.post("/search", {
-    api_key: API_KEY,
-    query,
-    topic: "news",
-    max_results: maxResults,
-    time_range: timeRange,
-    include_answer: false,
-  });
+async function newsSearch(query, { maxResults = 10, timeRange = "week", apiKey } = {}) {
+  const key = resolveKey(apiKey);
+  const { data } = await axios.post(
+    `${BASE}/search`,
+    {
+      api_key: key,
+      query,
+      topic: "news",
+      max_results: maxResults,
+      time_range: timeRange,
+      include_answer: false,
+    },
+    { timeout: 20000, headers: { "Content-Type": "application/json" } }
+  );
 
   return {
     query: data.query || query,
