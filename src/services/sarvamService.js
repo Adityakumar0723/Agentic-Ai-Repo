@@ -26,7 +26,7 @@ const client = axios.create({
  * model's own knowledge — a fast, conversational "ask and get an answer"
  * experience, similar in spirit to Leo AI.
  */
-async function aiAnswer(query, { model = "sarvam-m" } = {}) {
+async function aiAnswer(query, { model = "sarvam-105b-conversations" } = {}) {
   requireKey();
 
   const { data } = await client.post("/v1/chat/completions", {
