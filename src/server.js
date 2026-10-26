@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const wikipediaRoutes = require("./routes/wikipedia");
 const newsRoutes = require("./routes/news");
+const searchRoutes = require("./routes/search");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,14 @@ app.get("/", (req, res) => {
           reddit: "/api/news/reddit/:subreddit?limit=<n>&sort=<hot|new|top>",
         },
       },
+      search: {
+        description: "Live web search, news search, and AI-generated answers, all powered by the Tavily Search API (free, no card required)",
+        endpoints: {
+          search: "/api/search/search?q=<query>&maxResults=<n>",
+          news: "/api/search/news?q=<query>&maxResults=<n>",
+          answer: "/api/search/answer?q=<query>",
+        },
+      },
     },
   });
 });
@@ -46,6 +55,7 @@ app.get("/health", (req, res) => {
 
 app.use("/api/wikipedia", wikipediaRoutes);
 app.use("/api/news", newsRoutes);
+app.use("/api/search", searchRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });

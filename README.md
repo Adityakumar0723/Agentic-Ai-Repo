@@ -49,3 +49,27 @@ Full request/response schema: [openapi.yaml](openapi.yaml)
 ```bash
 curl "http://localhost:5000/api/wikipedia/page/India"
 ```
+
+---
+
+# Search Agent
+
+**Search Agent** gives the backend live, independent web search — not tied to any single crawler index — plus AI-generated answers, all powered by the Tavily Search API (free tier, no card required).
+
+1. **Web search** — real-time results from across the web, with titles, content snippets, and relevance scores (`/search`)
+2. **News search** — live, freshness-filterable news results (`/news`)
+3. **AI answer** — a synthesized, cited answer to a natural-language question, built live from web results, with source links (`/answer`)
+
+Requires a free Tavily API key ([tavily.com](https://tavily.com) — free tier, no card needed, 1,000 credits/month). Set it as `TAVILY_API_KEY` in `.env`.
+
+## Endpoints
+
+- `GET /api/search/search?q=<query>&maxResults=<n>&depth=<basic|advanced>&timeRange=<day|week|month|year>` — live web search
+- `GET /api/search/news?q=<query>&maxResults=<n>&timeRange=<day|week|month|year>` — live news search
+- `GET /api/search/answer?q=<query>` — AI-generated answer with cited sources
+
+## Example
+
+```bash
+curl "http://localhost:5000/api/search/answer?q=What+is+retrieval+augmented+generation"
+```
