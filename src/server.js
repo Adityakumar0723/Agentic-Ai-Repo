@@ -38,7 +38,7 @@ app.get("/", (req, res) => {
         },
       },
       sarvamai: {
-        description: "Live web/news search via the Tavily Search API, and AI-generated answers via Sarvam AI (both free, no card required)",
+        description: "Every query is answered by Sarvam AI, grounded in live Tavily search results when available (both free, no card required)",
         endpoints: {
           search: "/api/search/search?q=<query>&maxResults=<n>",
           news: "/api/search/news?q=<query>&maxResults=<n>",

@@ -21,22 +21,22 @@ const client = axios.create({
 });
 
 /**
- * AI-generated answer via Sarvam AI's chat completion API. Sarvam itself
- * doesn't crawl the live web, so the question is answered directly from the
- * model's own knowledge — a fast, conversational "ask and get an answer"
- * experience, similar in spirit to Leo AI.
+ * AI-generated answer via Sarvam AI's chat completion API. When `context`
+ * (live search snippets) is supplied, Sarvam grounds its answer in that
+ * context; otherwise it answers directly from its own knowledge. Either way,
+ * Sarvam AI is the one generating the final response to the user's query.
  */
-async function aiAnswer(query, { model = "sarvam-105b-conversations" } = {}) {
+async function aiAnswer(query, { model = "sarvam-105b-conversations", context } = {}) {
   requireKey();
+
+  const systemPrompt = context
+    ? `You are a helpful search assistant. Use the following live search results to answer the user's question clearly and concisely. Cite facts from the results where relevant, and mention if the results don't fully answer the question.\n\nSearch results:\n${context}`
+    : "You are a helpful search assistant. Answer the user's question clearly and concisely, in plain language.";
 
   const { data } = await client.post("/v1/chat/completions", {
     model,
     messages: [
-      {
-        role: "system",
-        content:
-          "You are a helpful search assistant. Answer the user's question clearly and concisely, in plain language.",
-      },
+      { role: "system", content: systemPrompt },
       { role: "user", content: query },
     ],
   });
