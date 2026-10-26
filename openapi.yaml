@@ -260,6 +260,7 @@ paths:
         - name: timeRange
           in: query
           required: false
+          description: Restrict results by recency
           schema:
             type: string
             enum: [day, week, month, year]
