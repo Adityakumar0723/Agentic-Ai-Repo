@@ -1,5 +1,6 @@
 const express = require("express");
 const tavily = require("../services/tavilyService");
+const sarvam = require("../services/sarvamService");
 
 const router = express.Router();
 
@@ -39,7 +40,7 @@ router.get("/answer", async (req, res, next) => {
     const { q } = req.query;
     if (!q) return res.status(400).json({ error: "Query param 'q' is required" });
 
-    const data = await tavily.aiAnswer(q);
+    const data = await sarvam.aiAnswer(q);
     res.json(data);
   } catch (err) {
     next(err);

@@ -37,8 +37,8 @@ app.get("/", (req, res) => {
           reddit: "/api/news/reddit/:subreddit?limit=<n>&sort=<hot|new|top>",
         },
       },
-      search: {
-        description: "Live web search, news search, and AI-generated answers, all powered by the Tavily Search API (free, no card required)",
+      sarvamai: {
+        description: "Live web/news search via the Tavily Search API, and AI-generated answers via Sarvam AI (both free, no card required)",
         endpoints: {
           search: "/api/search/search?q=<query>&maxResults=<n>",
           news: "/api/search/news?q=<query>&maxResults=<n>",

@@ -65,36 +65,7 @@ async function newsSearch(query, { maxResults = 10, timeRange = "week" } = {}) {
   };
 }
 
-/**
- * AI-generated answer (Tavily's "include_answer" feature) — a synthesized,
- * cited answer to a natural-language question, built from live web results.
- * This plays the same "Leo AI" role the agent originally used Brave's
- * Summarizer for.
- */
-async function aiAnswer(query, { searchDepth = "advanced" } = {}) {
-  requireKey();
-  const { data } = await client.post("/search", {
-    api_key: API_KEY,
-    query,
-    search_depth: searchDepth,
-    include_answer: "advanced",
-    max_results: 5,
-  });
-
-  return {
-    query: data.query || query,
-    answer: data.answer || null,
-    sources: (data.results || []).map((r) => ({
-      title: r.title,
-      url: r.url,
-      content: r.content,
-    })),
-    responseTime: data.response_time || null,
-  };
-}
-
 module.exports = {
   webSearch,
   newsSearch,
-  aiAnswer,
 };

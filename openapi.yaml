@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Agentic AI — Unified Agent Backend
-  description: A Node.js/Express backend hosting multiple agents — Wikipedia (search, summary, full article content, random articles), GlobalWire (30,000+ RSS news sources + Reddit), and Search (live web search, news search, and AI-generated answers powered by the Tavily Search API).
+  description: A Node.js/Express backend hosting multiple agents — Wikipedia (search, summary, full article content, random articles), GlobalWire (30,000+ RSS news sources + Reddit), and Sarvam AI (live web/news search via Tavily, and AI-generated answers via Sarvam AI).
   version: 3.0.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
@@ -245,7 +245,7 @@ paths:
 
   /api/search/answer:
     get:
-      summary: Get an AI-generated answer for a query, synthesized from live web results
+      summary: Get an AI-generated answer for a query, via Sarvam AI
       operationId: aiAnswer
       parameters:
         - name: q
@@ -257,7 +257,7 @@ paths:
           example: What is retrieval augmented generation?
       responses:
         "200":
-          description: AI-generated answer with cited sources
+          description: AI-generated answer
           content:
             application/json:
               schema:
@@ -268,8 +268,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "404":
-          description: No AI summary available for this query
+        "500":
+          description: Sarvam AI request failed
           content:
             application/json:
               schema:
@@ -378,18 +378,6 @@ components:
           items:
             $ref: "#/components/schemas/WebResult"
 
-    AiAnswerSource:
-      type: object
-      properties:
-        title:
-          type: string
-          nullable: true
-        url:
-          type: string
-        content:
-          type: string
-          nullable: true
-
     AiAnswerResponse:
       type: object
       properties:
@@ -398,11 +386,11 @@ components:
         answer:
           type: string
           nullable: true
-          description: AI-generated answer synthesized from live web results
-        sources:
-          type: array
-          items:
-            $ref: "#/components/schemas/AiAnswerSource"
-        responseTime:
-          type: number
+          description: AI-generated answer from Sarvam AI's chat completion model
+        model:
+          type: string
           nullable: true
+        usage:
+          type: object
+          nullable: true
+          description: Token usage reported by Sarvam AI
