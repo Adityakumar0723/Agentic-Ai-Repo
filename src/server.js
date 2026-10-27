@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
     status: "running",
     agents: {
       wikipedia: {
-        description: "Search, summarize, and extract full Wikipedia articles",
+        description: "Search 60M+ Wikipedia articles — instant access to the world's largest encyclopedia for ANY knowledge query",
         endpoints: {
           search: "/api/wikipedia/search?q=<query>&limit=<n>",
           summary: "/api/wikipedia/summary/:title",
