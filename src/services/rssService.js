@@ -22,7 +22,7 @@ function stripHtml(html) {
 }
 
 function normalizeItem(item, source, feedTitle) {
-  const fullContent = item["content:encoded"] || item.content || null;
+  const fullContent = item["content:encoded"] || item.content || item.description || null;
   const snippet = item.contentSnippet || item.summary || null;
   const cleanContent = stripHtml(fullContent);
 
@@ -209,13 +209,25 @@ async function searchArticles(query, limitPerSource = 15) {
     });
   }
 
-  const q = query.toLowerCase();
-  const matched = articles.filter(
-    (item) =>
-      (item.title && typeof item.title === "string" && item.title.toLowerCase().includes(q)) ||
-      (item.summary && typeof item.summary === "string" && item.summary.toLowerCase().includes(q)) ||
-      (item.content && typeof item.content === "string" && item.content.toLowerCase().includes(q))
-  );
+  const words = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
+  if (words.length === 0) return { results: [], failed, searched };
+
+  const matched = articles.filter((item) => {
+    const text = [
+      typeof item.title === "string" ? item.title : "",
+      typeof item.summary === "string" ? item.summary : "",
+      typeof item.content === "string" ? item.content : "",
+    ].join(" ").toLowerCase();
+    return words.some((w) => text.includes(w));
+  });
+
+  matched.sort((a, b) => {
+    const textA = [a.title || "", a.summary || "", a.content || ""].join(" ").toLowerCase();
+    const textB = [b.title || "", b.summary || "", b.content || ""].join(" ").toLowerCase();
+    const scoreA = words.filter((w) => textA.includes(w)).length;
+    const scoreB = words.filter((w) => textB.includes(w)).length;
+    return scoreB - scoreA;
+  });
 
   return { results: matched, failed, searched };
 }
