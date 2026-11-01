@@ -12,7 +12,7 @@ info:
        → Endpoints: /api/wikipedia/search, /api/wikipedia/summary, /api/wikipedia/page, /api/wikipedia/random
 
     2. GLOBALWIRE AGENT (news-agent/openapi.yaml)
-       → 150,000+ live RSS news feeds across 100+ categories — Reddit, Medium, Dev.to, Hashnode, YouTube, arXiv, podcasts, newsletters, tech blogs, Substack, Tumblr, Flipboard, WordPress, Google News (80+ countries), StackExchange & more
+       → 170,000+ live RSS news feeds across 100+ categories — Reddit, Medium, Dev.to, Hashnode, YouTube, arXiv, podcasts, newsletters, tech blogs, Substack, Tumblr, Flipboard, WordPress, Google News (80+ countries), StackExchange & more
        → Endpoints: /api/news/sources, /api/news/categories, /api/news/feed, /api/news/search, etc.
 
     3. SARVAM AI AGENT (sarvam-agent/openapi.yaml)
