@@ -92663,11 +92663,45 @@ const CATEGORIES = {
   fm2fh: ["Medium"],
   fd2fi: ["Dev.to","Cars & Vehicles"],
   fh2fj: ["Hashnode"],
+  general_legal: ["Law & Legal","Artificial Intelligence"],
+  casemine: ["Law & Legal"],
+  erase_com: ["Technology","Cybersecurity"],
+  sphericalinsights: ["Business","Technology"],
+  lpm_org: ["News"],
+  mikelegal: ["Law & Legal","Artificial Intelligence"],
+  misinforeview_harvard: ["Science","News"],
+  legalizeal: ["Law & Legal"],
+  berl_net: ["Technology","Artificial Intelligence"],
+  truefoundry: ["Artificial Intelligence","Technology"],
+  razorsign: ["Law & Legal","Technology"],
+  ironcladapp: ["Law & Legal","Technology"],
+  ironclad_support: ["Law & Legal","Technology"],
+  assembly_ai: ["Artificial Intelligence","Technology"],
+  mindsprint: ["Technology","Business"],
+  globalfintechseries: ["Finance","Technology"],
+  saifr_ai: ["Artificial Intelligence","Finance"],
+  memeburn: ["Technology","News"],
+  rockhealth: ["Health","Technology"],
+  qubit_capital: ["Finance","Artificial Intelligence"],
+  americanactionforum: ["Business","Politics"],
+  dkbinnovative: ["Technology","Cybersecurity"],
+  viewpointanalysis: ["Artificial Intelligence","Business"],
+  platinumids_blog: ["Technology","Business"],
+  globalventuring: ["Finance","Business"],
+  newmarketpitch: ["Finance","Business"],
+  uslegalsupport: ["Law & Legal"],
+  legalontech: ["Law & Legal","Technology"],
+  omidsaffari: ["Law & Legal","Technology"],
+  spellbook_legal: ["Law & Legal","Artificial Intelligence"],
+  einpresswire: ["News"],
+  linfordco: ["Law & Legal","Business"],
+  airia: ["Artificial Intelligence","Technology"],
+  gunder: ["Law & Legal"],
+  primesecured: ["Cybersecurity","Technology"],
 };
 
 const _catToKeys = {};
 const _keyToCats = CATEGORIES;
-
 for (const [key, cats] of Object.entries(CATEGORIES)) {
   const arr = Array.isArray(cats) ? cats : [cats];
   for (const c of arr) {
@@ -92675,13 +92709,11 @@ for (const [key, cats] of Object.entries(CATEGORIES)) {
     _catToKeys[c].push(key);
   }
 }
-
 function listCategories() {
   return Object.entries(_catToKeys)
     .map(([name, keys]) => ({ name, count: keys.length }))
     .sort((a, b) => b.count - a.count);
 }
-
 function getSourcesForCategory(cat) {
   const lower = cat.toLowerCase();
   for (const [name, keys] of Object.entries(_catToKeys)) {
@@ -92689,9 +92721,7 @@ function getSourcesForCategory(cat) {
   }
   return [];
 }
-
 function getCategoryForSource(key) {
   return CATEGORIES[key] || ["General"];
 }
-
 module.exports = { CATEGORIES, getCategoryForSource, getSourcesForCategory, listCategories };
