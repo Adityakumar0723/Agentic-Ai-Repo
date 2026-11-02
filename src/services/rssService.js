@@ -1,9 +1,9 @@
 const Parser = require("rss-parser");
 const SOURCES = require("./sources");
 
-const parser = new Parser({ timeout: 4000 });
+const parser = new Parser({ timeout: 3000 });
 const MAX_SEARCH_MS = 25000;
-const BATCH_SIZE = 150;
+const BATCH_SIZE = 200;
 
 function stripHtml(html) {
   if (!html) return null;
@@ -143,6 +143,14 @@ const PRIORITY_PREFIXES = [
   "fill_guardian", "fill_nyt", "fill_npr", "fill_espn", "fill_ndtv",
   "fill_toi", "fill_verge", "fill_wired", "fill_techcrunch",
   "vr_", "sci2_", "ent2_", "game2_",
+  "nyt_", "wapo_", "usatoday_", "latimes_", "guardian_", "telegraph_",
+  "independent_", "dailymail_", "ie_", "et_", "livemint_", "bs_",
+  "thehindu_", "france24_", "dw_", "scmp_", "japantimes_",
+  "smh_", "abc_au", "cbc_", "aljazeera_", "arabnews", "dawn_",
+  "nature_", "science_", "espn_", "cnbc_", "variety_",
+  "openai_", "aws_", "azure_", "gcp_", "github_",
+  "mp_", "sb_", "wb_", "pd_", "yt_", "gv_", "ur_",
+  "mx_", "sx_", "bx_", "px_", "yx_", "rx_", "dx_", "hx_", "fx_", "se_", "nw_", "gx_",
 ];
 
 function prioritizeKeys(keys) {
@@ -171,8 +179,25 @@ async function fetchMultipleSources(keys, limitPerSource = 10) {
   return fetchSourcesBatch(keys, limitPerSource, deadline);
 }
 
+function queryRelevantKeys(query, allKeys) {
+  const q = query.toLowerCase();
+  const relevant = [];
+  const rest = [];
+  for (const key of allKeys) {
+    const kl = key.toLowerCase();
+    const url = (SOURCES[key] || "").toLowerCase();
+    if (q.split(/\s+/).some((w) => w.length >= 2 && (kl.includes(w) || url.includes(w)))) {
+      relevant.push(key);
+    } else {
+      rest.push(key);
+    }
+  }
+  return [...relevant, ...rest];
+}
+
 async function searchArticles(query, limitPerSource = 15) {
-  const keys = prioritizeKeys(Object.keys(SOURCES));
+  const prioritized = prioritizeKeys(Object.keys(SOURCES));
+  const keys = queryRelevantKeys(query, prioritized);
   const deadline = Date.now() + MAX_SEARCH_MS;
   const articles = [];
   const failed = [];
@@ -186,7 +211,7 @@ async function searchArticles(query, limitPerSource = 15) {
     if (timeLeft <= 0) break;
 
     const batchPromises = batch.map((source) => fetchOneSourceFast(source));
-    const batchTimeout = Math.min(timeLeft, 5000);
+    const batchTimeout = Math.min(timeLeft, 4000);
     const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), batchTimeout));
     const raceResult = await Promise.race([Promise.allSettled(batchPromises), timer]);
 
@@ -207,6 +232,8 @@ async function searchArticles(query, limitPerSource = 15) {
         failed.push({ source, error: "skipped" });
       }
     });
+
+    if (articles.length >= 500 && Date.now() > deadline - 5000) break;
   }
 
   const words = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
@@ -226,7 +253,10 @@ async function searchArticles(query, limitPerSource = 15) {
     const textB = [b.title || "", b.summary || "", b.content || ""].join(" ").toLowerCase();
     const scoreA = words.filter((w) => textA.includes(w)).length;
     const scoreB = words.filter((w) => textB.includes(w)).length;
-    return scoreB - scoreA;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+    const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+    return dateB - dateA;
   });
 
   return { results: matched, failed, searched };

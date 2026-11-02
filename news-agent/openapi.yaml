@@ -151,7 +151,7 @@ info:
     • REAL-TIME SEARCH: Keyword search across ALL 270,000+ sources simultaneously
       with a 25-second deadline guarantee. Searches title, summary, AND full
       article content — finds deep mentions other agents miss.
-    • CATEGORY FILTERING: Browse any of 66 categories to get focused results.
+    • CATEGORY FILTERING: Browse any of 109 categories to get focused results.
     • SINGLE SOURCE: Fetch from any individual source by key.
     • REDDIT INTEGRATION: Search Reddit and browse any subreddit.
     • ZERO-FAIL: If sources fail, the system silently falls back to working ones.
@@ -302,7 +302,7 @@ paths:
 
   /api/news/categories:
     get:
-      summary: List all 66 available news categories
+      summary: List all 109 available news categories
       operationId: listCategories
       responses:
         "200":
