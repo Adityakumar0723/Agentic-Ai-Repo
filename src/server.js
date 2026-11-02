@@ -26,7 +26,7 @@ app.get("/", (req, res) => {
         },
       },
       globalwire: {
-        description: "Live news from 270000+ verified RSS feeds across 100+ categories — Reddit, Medium, Dev.to, Hashnode, YouTube, arXiv, podcasts, newsletters, tech blogs, Substack, Tumblr, Flipboard, WordPress, Google News (80+ countries), StackExchange, real newspapers, company blogs, university news, government feeds, international news & more",
+        description: "Live news from 275000+ verified RSS feeds across 100+ categories — Reddit, Medium, Dev.to, Hashnode, YouTube, arXiv, podcasts, newsletters, tech blogs, Substack, Tumblr, Flipboard, WordPress, Google News (80+ countries), StackExchange, real newspapers, company blogs, university news, government feeds, international news & more",
         endpoints: {
           sources: "/api/news/sources",
           categories: "/api/news/categories",
