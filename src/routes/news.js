@@ -6,10 +6,17 @@ const { CATEGORIES, getCategoryForSource, getSourcesForCategory, listCategories 
 const router = express.Router();
 
 router.get("/sources", (req, res) => {
+  const page = Math.max(1, Number(req.query.page) || 1);
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
+  const allSources = rss.listSources();
+  const start = (page - 1) * limit;
   res.json({
-    total: rss.listSourceKeys().length,
+    total: allSources.length,
+    page,
+    limit,
+    totalPages: Math.ceil(allSources.length / limit),
     categories: listCategories(),
-    sources: rss.listSources(),
+    sources: allSources.slice(start, start + limit),
   });
 });
 

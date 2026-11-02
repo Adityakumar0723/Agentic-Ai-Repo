@@ -32,8 +32,8 @@ function normalizeItem(item, source, feedTitle) {
     sourceFeed: feedTitle || source,
     title: item.title || null,
     link: item.link || null,
-    summary: snippet || null,
-    content: cleanContent || snippet || null,
+    summary: snippet ? snippet.slice(0, 800) : null,
+    content: (cleanContent || snippet || "").slice(0, 1500) || null,
     publishedAt: item.isoDate || item.pubDate || null,
     author: item.creator || item.author || null,
   };
