@@ -1,9 +1,9 @@
 const Parser = require("rss-parser");
 const SOURCES = require("./sources");
 
-const parser = new Parser({ timeout: 3000 });
+const parser = new Parser({ timeout: 2000 });
 const MAX_SEARCH_MS = 15000;
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 300;
 
 function stripHtml(html) {
   if (!html) return null;
@@ -93,13 +93,13 @@ async function fetchSourcesBatch(keys, limitPerSource, deadlineMs) {
     if (timeLeft <= 0) break;
 
     const batchPromises = batch.map((source) => fetchOneSource(source));
-    const batchTimeout = Math.min(timeLeft, 5000);
+    const batchTimeout = Math.min(timeLeft, 3000);
     const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), batchTimeout));
     const raceResult = await Promise.race([Promise.allSettled(batchPromises), timer]);
 
     if (raceResult === "timeout") {
       const settled = await Promise.allSettled(batchPromises.map((p) =>
-        Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false, source: "timeout" }), 300))])
+        Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false, source: "timeout" }), 100))])
       ));
       settled.forEach((result, idx) => {
         const source = batch[idx];
@@ -215,13 +215,13 @@ async function searchBatch(keys, limitPerSource, deadline, articles, failed, sea
     if (timeLeft <= 0) break;
 
     const batchPromises = batch.map((source) => fetchOneSourceFast(source));
-    const batchTimeout = Math.min(timeLeft, 4000);
+    const batchTimeout = Math.min(timeLeft, 2500);
     const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), batchTimeout));
     const raceResult = await Promise.race([Promise.allSettled(batchPromises), timer]);
 
     const results = raceResult === "timeout"
       ? await Promise.allSettled(batchPromises.map((p) =>
-          Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false }), 200))])))
+          Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false }), 100))])))
       : raceResult;
 
     results.forEach((result, idx) => {
