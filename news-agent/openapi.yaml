@@ -54,23 +54,40 @@ info:
 
 
     ███████████████████████████████████████████████████████████████████
-    █  CATEGORIES (109)                                                █
+    █  CATEGORIES (167)                                                █
     ███████████████████████████████████████████████████████████████████
 
-    NEWS & REGIONS: world, asia, india, middleeast, europe, latam, africa
+    NEWS & REGIONS: world, asia, india, middleeast, europe, latam, africa,
+      Google News, News, World News, Politics, News Wire Services
     BUSINESS & FINANCE: business, crypto, personalfinance, fintech, realestate,
-      marketing, supplychain
+      marketing, supplychain, Finance, Economics, Business, Blockchain,
+      Cryptocurrency, E-Commerce, FinTech, Real Estate
     TECHNOLOGY: technology, cybersecurity, programming, ai, quantum, arvr,
-      iot, drones, semiconductors, edtech, telecom
+      iot, drones, semiconductors, edtech, telecom, Technology, Cybersecurity,
+      Programming, Artificial Intelligence, AI & Machine Learning, Computer Science,
+      Cloud Computing, Electronics, Emerging Tech, Robotics & IoT, Mobile Development,
+      Web Development, DevOps, DevOps & Monitoring, Data Science, Databases,
+      Open Source, Productivity, Design & Productivity, HR Tech, HealthTech
     SCIENCE & HEALTH: science, space, health, climate, biotech, mentalhealth,
-      sustainability, weather, agriculture
+      sustainability, weather, agriculture, Science, Space, Health, Environment,
+      Medical Science, Psychology, Health & Wellness, Cognitive Science,
+      Fitness Tech, Agriculture
     LIFESTYLE: food, travel, fashion, fitness, home, pets, photography, diy,
-      parenting, lifestyle, religion, architecture
+      parenting, lifestyle, religion, architecture, Food, Food & Cooking,
+      Travel, Fashion, Lifestyle, Parenting, Pets & Animals, Animals & Pets,
+      Photography, Home & Living, Gardening, DIY & Crafts, Hobbies & Crafts,
+      Beverages, Outdoor Activities, Adventure Sports, Food Delivery
     ENTERTAINMENT: entertainment, gaming, music, anime, books, streaming,
-      theater, socialmedia
+      theater, socialmedia, Entertainment, Gaming, Music, Anime & Manga,
+      Books & Literature, Arts & Culture, Art & Design, Blogs, Streaming
     CAREERS & SOCIETY: careers, education, law, government, defense, philosophy,
-      media, history, energy, robotics
-    INDUSTRY: startups, design, automotive, aviation, sports
+      media, history, energy, robotics, Education, Career, Law & Legal,
+      Politics, Philosophy, History, Energy, Marketing, Religion
+    INDUSTRY: startups, design, automotive, aviation, sports, Sports, Design,
+      Automotive, Cars & Vehicles
+    PLATFORMS: Reddit, Medium, Dev.to, Hashnode, Substack, Flipboard, YouTube,
+      Mastodon, Lemmy, Tumblr, Blogger, WordPress, Beehiiv, Pixelfed, Mirror,
+      Buttondown, WriteFreely, Ghost, Micro.blog, StackExchange, arXiv, Podcasts
 
 
     ███████████████████████████████████████████████████████████████████
@@ -330,7 +347,7 @@ paths:
         - name: name
           in: path
           required: true
-          description: "Category name — one of: anime, books, weather, agriculture, aviation, telecom, careers, mentalhealth, architecture, diy, streaming, socialmedia, privacy, sustainability, government, quantum, arvr, iot, drones, edtech, religion, theater, world, asia, india, middleeast, europe, latam, africa, business, crypto, technology, cybersecurity, programming, ai, science, space, health, climate, sports, entertainment, gaming, music, food, travel, automotive, realestate, education, law, startups, design, defense, philosophy, personalfinance, fashion, parenting, fitness, home, pets, photography, history, lifestyle, media, robotics, energy, biotech, marketing, fintech, semiconductors, supplychain, Google News, General, Reddit, Medium, Dev.to, Cars & Vehicles, Art & Design, Hashnode, Flipboard, Pets & Animals, News, Programming, World News, Finance, Substack, Food & Cooking, Environment, Economics, Podcasts, Books & Literature, Outdoor Activities, arXiv, Real Estate, StackExchange, Home & Living, Gardening, DIY & Crafts, Career, Beverages, Anime & Manga, Psychology, Web Development, Cloud Computing, Tumblr, DevOps, Artificial Intelligence, Law & Legal, YouTube, Blockchain, Data Science, Databases, Open Source, Productivity, Electronics, Mobile Development"
+          description: "Category name — one of: Google News, General, Medium, Cars & Vehicles, Reddit, Technology, Business, Health, Dev.to, Finance, Sports, Education, Environment, Podcasts, Energy, Art & Design, News, Hashnode, Science, World News, Law & Legal, Substack, Space, Flipboard, Politics, Pets & Animals, Cybersecurity, Programming, Economics, Food & Cooking, Entertainment, Blockchain, Travel, YouTube, Computer Science, Mastodon, Gaming, Blogs, Music, Cloud Computing, Real Estate, technology, Fashion, Databases, Books & Literature, History, Photography, Medical Science, Electronics, Artificial Intelligence, programming, Adventure Sports, Web Development, DevOps, Lemmy, Outdoor Activities, Design, Beverages, Home & Living, StackExchange, media, Animals & Pets, entertainment, science, Cognitive Science, Open Source, Tumblr, Gardening, Marketing, Religion, Parenting, DIY & Crafts, arXiv, News Wire Services, AI & Machine Learning, world, Blogger, Career, business, WordPress, Anime & Manga, Philosophy, sports, Data Science, Agriculture, Beehiiv, Pixelfed, education, lifestyle, Arts & Culture, health, government, climate, Mirror, Buttondown, design, WriteFreely, Ghost, law, Psychology, personalfinance, startups, crypto, Micro.blog, Emerging Tech, automotive, Lifestyle, Food, edtech, parenting, realestate, Robotics & IoT, ai, gaming, agriculture, sustainability, Productivity, asia, europe, travel, E-Commerce, HR Tech, FinTech, africa, food, Cryptocurrency, Fitness Tech, Automotive, latam, space, fitness, Design & Productivity, DevOps & Monitoring, HealthTech, Food Delivery, india, cybersecurity, pets, Health & Wellness, Mobile Development, architecture, middleeast, music, photography, home, diy, Hobbies & Crafts, telecom, quantum, arvr, iot, drones, semiconductors, biotech, mentalhealth, weather, anime, books, streaming, socialmedia, theater, careers, defense, robotics, aviation, supplychain, privacy"
           schema:
             type: string
           example: technology

@@ -274106,6 +274106,34 @@ for (const [key, cats] of Object.entries(CATEGORIES)) {
   }
 }
 function listCategories() { return Object.entries(_catToKeys).map(([name, keys]) => ({ name, count: keys.length })).sort((a, b) => b.count - a.count); }
-function getSourcesForCategory(cat) { const lower = cat.toLowerCase(); for (const [name, keys] of Object.entries(_catToKeys)) { if (name.toLowerCase() === lower) return keys; } return []; }
+const CATEGORY_ALIASES = {
+  telecom: "Technology",
+  quantum: "Emerging Tech",
+  arvr: "Emerging Tech",
+  iot: "Robotics & IoT",
+  drones: "Robotics & IoT",
+  semiconductors: "Electronics",
+  biotech: "Medical Science",
+  mentalhealth: "Psychology",
+  weather: "Environment",
+  anime: "Anime & Manga",
+  books: "Books & Literature",
+  streaming: "Entertainment",
+  socialmedia: "Technology",
+  theater: "Entertainment",
+  careers: "Career",
+  defense: "Politics",
+  robotics: "Robotics & IoT",
+  aviation: "Automotive",
+  supplychain: "Business",
+  privacy: "Cybersecurity",
+};
+function getSourcesForCategory(cat) {
+  const lower = cat.toLowerCase();
+  for (const [name, keys] of Object.entries(_catToKeys)) { if (name.toLowerCase() === lower) return keys; }
+  const alias = CATEGORY_ALIASES[lower];
+  if (alias) { for (const [name, keys] of Object.entries(_catToKeys)) { if (name.toLowerCase() === alias.toLowerCase()) return keys; } }
+  return [];
+}
 function getCategoryForSource(key) { return CATEGORIES[key] || ["General"]; }
 module.exports = { CATEGORIES, getCategoryForSource, getSourcesForCategory, listCategories };
