@@ -108,10 +108,12 @@ router.get("/search", async (req, res) => {
   try {
     const parsedLimit = limit ? Number(limit) : 15;
 
-    const [newsData, redditData] = await Promise.all([
-      rss.searchArticles(q, parsedLimit),
-      reddit.searchReddit(q, parsedLimit),
-    ]);
+    const newsData = await rss.searchArticles(q, parsedLimit);
+
+    let redditData = { posts: [], error: null };
+    if (newsData.results.length < 5) {
+      redditData = await reddit.searchReddit(q, parsedLimit);
+    }
 
     res.json({
       query: q,
@@ -119,7 +121,7 @@ router.get("/search", async (req, res) => {
       sourcesSearched: newsData.searched ? newsData.searched.length : rss.listSourceKeys().length,
       sourcesFailed: newsData.failed.length,
       news: newsData.results,
-      reddit: redditData.posts,
+      ...(redditData.posts.length > 0 && { reddit: redditData.posts }),
       ...(redditData.error && { redditWarning: redditData.error }),
       ...(newsData.failed.length > 0 && { skippedSources: newsData.failed.slice(0, 10).map((f) => f.source) }),
     });
