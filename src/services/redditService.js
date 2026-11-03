@@ -1,8 +1,13 @@
 const axios = require("axios");
 
+const REDDIT_HOSTS = ["https://old.reddit.com", "https://www.reddit.com"];
+
 const client = axios.create({
-  headers: { "User-Agent": "globalwire-agent/2.0 (https://github.com/Adityakumar0723/Agentic-Ai-Repo)" },
-  timeout: 8000,
+  headers: {
+    "User-Agent": "Mozilla/5.0 (compatible; GlobalWireBot/2.0; +https://github.com/Adityakumar0723/Agentic-Ai-Repo)",
+    "Accept": "application/json",
+  },
+  timeout: 10000,
 });
 
 function normalizePost(c, subreddit) {
@@ -21,34 +26,42 @@ function normalizePost(c, subreddit) {
 }
 
 async function fetchSubreddit(subreddit, limit = 15, sort = "hot") {
-  try {
-    const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/${sort}.json`;
-    const { data } = await client.get(url, { params: { limit } });
-    return {
-      posts: (data.data.children || []).map((c) => normalizePost(c, subreddit)),
-      error: null,
-    };
-  } catch (err) {
-    return {
-      posts: [],
-      error: `Reddit r/${subreddit} unavailable: ${err.message}`,
-    };
+  for (const host of REDDIT_HOSTS) {
+    try {
+      const url = `${host}/r/${encodeURIComponent(subreddit)}/${sort}.json`;
+      const { data } = await client.get(url, { params: { limit } });
+      return {
+        posts: (data.data.children || []).map((c) => normalizePost(c, subreddit)),
+        error: null,
+      };
+    } catch (err) {
+      if (host === REDDIT_HOSTS[REDDIT_HOSTS.length - 1]) {
+        return {
+          posts: [],
+          error: `Reddit r/${subreddit} unavailable: ${err.message}`,
+        };
+      }
+    }
   }
 }
 
 async function searchReddit(query, limit = 15) {
-  try {
-    const url = `https://www.reddit.com/search.json`;
-    const { data } = await client.get(url, { params: { q: query, limit, sort: "relevance" } });
-    return {
-      posts: (data.data.children || []).map((c) => normalizePost(c)),
-      error: null,
-    };
-  } catch (err) {
-    return {
-      posts: [],
-      error: `Reddit search unavailable: ${err.message}`,
-    };
+  for (const host of REDDIT_HOSTS) {
+    try {
+      const url = `${host}/search.json`;
+      const { data } = await client.get(url, { params: { q: query, limit, sort: "relevance" } });
+      return {
+        posts: (data.data.children || []).map((c) => normalizePost(c)),
+        error: null,
+      };
+    } catch (err) {
+      if (host === REDDIT_HOSTS[REDDIT_HOSTS.length - 1]) {
+        return {
+          posts: [],
+          error: `Reddit search unavailable: ${err.message}`,
+        };
+      }
+    }
   }
 }
 
