@@ -6,11 +6,22 @@ const ACTION_BASE = `https://${LANG}.wikipedia.org/w/api.php`;
 
 const client = axios.create({
   headers: { "User-Agent": "wikipedia-agent/1.0 (https://github.com/Adityakumar0723/Agentic-Ai-Repo)" },
-  timeout: 10000,
+  timeout: 20000,
 });
 
+async function fetchWithRetry(fn, retries = 1) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+}
+
 async function searchArticles(query, limit = 10) {
-  const { data } = await client.get(ACTION_BASE, {
+  const { data } = await fetchWithRetry(() => client.get(ACTION_BASE, {
     params: {
       action: "query",
       list: "search",
@@ -19,7 +30,7 @@ async function searchArticles(query, limit = 10) {
       format: "json",
       origin: "*",
     },
-  });
+  }));
 
   return data.query.search.map((result) => ({
     title: result.title,
@@ -31,7 +42,7 @@ async function searchArticles(query, limit = 10) {
 }
 
 async function getSummary(title) {
-  const { data } = await client.get(`${REST_BASE}/page/summary/${encodeURIComponent(title)}`);
+  const { data } = await fetchWithRetry(() => client.get(`${REST_BASE}/page/summary/${encodeURIComponent(title)}`));
   return {
     title: data.title,
     description: data.description,
@@ -44,7 +55,7 @@ async function getSummary(title) {
 }
 
 async function getFullContent(title) {
-  const { data } = await client.get(ACTION_BASE, {
+  const { data } = await fetchWithRetry(() => client.get(ACTION_BASE, {
     params: {
       action: "query",
       prop: "extracts|categories|info|pageimages",
@@ -56,7 +67,7 @@ async function getFullContent(title) {
       origin: "*",
       pithumbsize: 500,
     },
-  });
+  }));
 
   const pages = data.query.pages;
   const page = pages[Object.keys(pages)[0]];
@@ -78,7 +89,7 @@ async function getFullContent(title) {
 }
 
 async function getRandomArticle() {
-  const { data } = await client.get(ACTION_BASE, {
+  const { data } = await fetchWithRetry(() => client.get(ACTION_BASE, {
     params: {
       action: "query",
       list: "random",
@@ -87,7 +98,7 @@ async function getRandomArticle() {
       format: "json",
       origin: "*",
     },
-  });
+  }));
 
   const title = data.query.random[0].title;
   return getFullContent(title);
