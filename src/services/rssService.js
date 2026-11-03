@@ -2,8 +2,8 @@ const Parser = require("rss-parser");
 const SOURCES = require("./sources");
 
 const parser = new Parser({ timeout: 3000 });
-const MAX_SEARCH_MS = 25000;
-const BATCH_SIZE = 200;
+const MAX_SEARCH_MS = 15000;
+const BATCH_SIZE = 150;
 
 function stripHtml(html) {
   if (!html) return null;
