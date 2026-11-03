@@ -181,28 +181,32 @@ async function fetchMultipleSources(keys, limitPerSource = 10) {
 
 function queryRelevantKeys(query, allKeys) {
   const q = query.toLowerCase();
-  const relevant = [];
-  const rest = [];
+  const words = q.split(/\s+/).filter((w) => w.length >= 2);
+  const priorityRelevant = [];
+  const priorityRest = [];
+  const otherRelevant = [];
+  const otherRest = [];
   for (const key of allKeys) {
     const kl = key.toLowerCase();
     const url = (SOURCES[key] || "").toLowerCase();
-    if (q.split(/\s+/).some((w) => w.length >= 2 && (kl.includes(w) || url.includes(w)))) {
-      relevant.push(key);
-    } else {
-      rest.push(key);
-    }
+    const isPriority = PRIORITY_PREFIXES.some((p) => kl.startsWith(p));
+    const isRelevant = words.some((w) => kl.includes(w) || url.includes(w));
+    if (isPriority && isRelevant) priorityRelevant.push(key);
+    else if (isPriority) priorityRest.push(key);
+    else if (isRelevant) otherRelevant.push(key);
+    else otherRest.push(key);
   }
-  return [...relevant, ...rest];
+  return [...priorityRelevant, ...priorityRest, ...otherRelevant, ...otherRest];
 }
 
-async function searchArticles(query, limitPerSource = 15) {
-  const prioritized = prioritizeKeys(Object.keys(SOURCES));
-  const keys = queryRelevantKeys(query, prioritized);
-  const deadline = Date.now() + MAX_SEARCH_MS;
-  const articles = [];
-  const failed = [];
-  const searched = [];
+const FALLBACK_SOURCES = [
+  "bbc", "bbc_world", "cnn", "cnn_world", "guardian", "nytimes", "npr",
+  "aljazeera", "reuters", "washpost", "bloomberg", "cnbc", "wsj",
+  "techcrunch", "verge", "wired", "ndtv", "toi", "hindu", "espn",
+  "coindesk", "variety", "arstechnica", "engadget", "zdnet", "cnet",
+];
 
+async function searchBatch(keys, limitPerSource, deadline, articles, failed, searched) {
   for (let i = 0; i < keys.length; i += BATCH_SIZE) {
     if (Date.now() >= deadline) break;
 
@@ -235,11 +239,22 @@ async function searchArticles(query, limitPerSource = 15) {
 
     if (articles.length >= 500 && Date.now() > deadline - 5000) break;
   }
+}
+
+async function searchArticles(query, limitPerSource = 15) {
+  const allKeys = Object.keys(SOURCES);
+  const keys = queryRelevantKeys(query, allKeys);
+  const deadline = Date.now() + MAX_SEARCH_MS;
+  const articles = [];
+  const failed = [];
+  const searched = [];
+
+  await searchBatch(keys, limitPerSource, deadline, articles, failed, searched);
 
   const words = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
   if (words.length === 0) return { results: [], failed, searched };
 
-  const matched = articles.filter((item) => {
+  let matched = articles.filter((item) => {
     const text = [
       typeof item.title === "string" ? item.title : "",
       typeof item.summary === "string" ? item.summary : "",
@@ -247,6 +262,27 @@ async function searchArticles(query, limitPerSource = 15) {
     ].join(" ").toLowerCase();
     return words.some((w) => text.includes(w));
   });
+
+  if (matched.length === 0 && Date.now() < deadline - 3000) {
+    const fallbackKeys = FALLBACK_SOURCES.filter((k) => SOURCES[k] && !searched.includes(k));
+    if (fallbackKeys.length > 0) {
+      const fbArticles = [];
+      const fbFailed = [];
+      const fbSearched = [];
+      await searchBatch(fallbackKeys, limitPerSource, deadline, fbArticles, fbFailed, fbSearched);
+      searched.push(...fbSearched);
+      failed.push(...fbFailed);
+      matched = fbArticles.filter((item) => {
+        const text = [
+          typeof item.title === "string" ? item.title : "",
+          typeof item.summary === "string" ? item.summary : "",
+          typeof item.content === "string" ? item.content : "",
+        ].join(" ").toLowerCase();
+        return words.some((w) => text.includes(w));
+      });
+      if (matched.length === 0) matched = fbArticles.slice(0, 20);
+    }
+  }
 
   matched.sort((a, b) => {
     const textA = [a.title || "", a.summary || "", a.content || ""].join(" ").toLowerCase();

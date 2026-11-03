@@ -116,12 +116,12 @@ router.get("/search", async (req, res) => {
     res.json({
       query: q,
       count: newsData.results.length + redditData.posts.length,
-      sourcesSearched: rss.listSourceKeys().length,
+      sourcesSearched: newsData.searched ? newsData.searched.length : rss.listSourceKeys().length,
       sourcesFailed: newsData.failed.length,
       news: newsData.results,
       reddit: redditData.posts,
       ...(redditData.error && { redditWarning: redditData.error }),
-      ...(newsData.failed.length > 0 && { skippedSources: newsData.failed.map((f) => f.source) }),
+      ...(newsData.failed.length > 0 && { skippedSources: newsData.failed.slice(0, 10).map((f) => f.source) }),
     });
   } catch (err) {
     res.json({
