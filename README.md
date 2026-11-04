@@ -77,3 +77,35 @@ Set both in `.env`.
 ```bash
 curl "http://localhost:5000/api/search/answer?q=What+is+retrieval+augmented+generation"
 ```
+
+---
+
+# WaveSearch Agent
+
+**WaveSearch Agent** is a brand-new, standalone agent — it does not share code with, or modify, the Wikipedia, GlobalWire, or Sarvam AI agents above. It researches a query across multiple LangSearch calls and has Sarvam AI synthesize one grounded answer, plus a downloadable markdown sources report.
+
+Its core feature is the **Smart Search Budget System**: every query is classified into a research depth, and that depth decides how many LangSearch calls get spent researching it from different angles (overview, statistics, pros/cons, expert opinion, case studies, etc.), so free-tier quota is never wasted on simple questions and is spent generously on real research requests.
+
+| Depth | Searches spent | Example |
+| --- | --- | --- |
+| `simple` | 1–2 | "what is the capital of France" |
+| `normal` | 3–5 | "compare React and Vue for a new project" |
+| `deep` | 10–20 | "in-depth analysis of the EV battery supply chain" |
+| `enterprise` | 20–50 | "comprehensive market research report on the Indian fintech industry" |
+
+Depth is auto-detected from the query, or can be forced with `&depth=`. A built-in daily quota tracker (`WAVESEARCH_DAILY_SEARCH_QUOTA`, default 1000 searches/day, resets at UTC midnight) caps every request so a single "enterprise" call can never burn through the whole free LangSearch quota — if quota is low, the agent transparently spends fewer searches than the bucket would normally allow.
+
+Requires the same two free API keys as the Sarvam AI agent: `LANGSEARCH_API_KEY` and `SARVAM_API_KEY`, set in `.env`.
+
+## Endpoints
+
+- `GET /api/wavesearch/search?q=<query>&depth=<simple|normal|deep|enterprise>&searches=<n>&maxResultsPerSearch=<n>&maxSources=<n>` — runs the budgeted research and returns the Sarvam AI answer, the deduped source list, and a markdown report
+- `GET /api/wavesearch/report?q=<query>&depth=<...>&download=<true|false>` — same research, returned as a downloadable `.md` report file (`Content-Disposition: attachment` by default; pass `download=false` to view inline)
+- `GET /api/wavesearch/quota` — current daily search quota status (`used`, `remaining`, `resetsAt`)
+
+## Example
+
+```bash
+curl "http://localhost:5000/api/wavesearch/search?q=deep+dive+into+quantum+computing+startups&depth=deep"
+curl "http://localhost:5000/api/wavesearch/report?q=what+is+LangSearch" -o report.md
+```

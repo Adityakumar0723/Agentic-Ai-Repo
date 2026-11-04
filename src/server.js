@@ -4,6 +4,7 @@ const cors = require("cors");
 const wikipediaRoutes = require("./routes/wikipedia");
 const newsRoutes = require("./routes/news");
 const searchRoutes = require("./routes/search");
+const wavesearchRoutes = require("./routes/wavesearch");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -45,6 +46,14 @@ app.get("/", (req, res) => {
           answer: "/api/search/answer?q=<query>",
         },
       },
+      wavesearch: {
+        description: "Smart Search Budget System — classifies each query as simple/normal/deep/enterprise research, spends 1-50 LangSearch calls across multiple angles accordingly (capped by a self-managed daily quota), then has Sarvam AI synthesize one grounded answer plus a downloadable markdown sources report",
+        endpoints: {
+          search: "/api/wavesearch/search?q=<query>&depth=<simple|normal|deep|enterprise>&searches=<n>",
+          report: "/api/wavesearch/report?q=<query>&depth=<simple|normal|deep|enterprise>&download=<true|false>",
+          quota: "/api/wavesearch/quota",
+        },
+      },
     },
   });
 });
@@ -56,6 +65,7 @@ app.get("/health", (req, res) => {
 app.use("/api/wikipedia", wikipediaRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/wavesearch", wavesearchRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });

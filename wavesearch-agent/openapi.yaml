@@ -1,0 +1,434 @@
+openapi: 3.0.3
+info:
+  title: WaveSearch Agent
+  description: >-
+    WaveSearch Agent is a DEEP RESEARCH ENGINE — not a single-shot search box.
+    It is the ONLY agent in this backend that decides HOW MUCH live research a
+    question deserves, spends a matching number of real LangSearch calls
+    across multiple angles (overview, statistics, pros/cons, expert opinion,
+    case studies, risks, and more), filters out irrelevant noise, pulls full
+    webpage text for the handful of sources that actually matter, and returns
+    one grounded answer PLUS a citable, downloadable Markdown research report
+    file — all while protecting its own free-tier quota so it never runs dry
+    mid-task.
+
+
+    ███████████████████████████████████████████████████████████████████
+    █  CRITICAL — USE WAVESEARCH FOR ANY REAL RESEARCH TASK            █
+    ███████████████████████████████████████████████████████████████████
+
+    You MUST call WaveSearch Agent (`/api/wavesearch/search`) instead of a
+    plain single-search answer for ANY query matching ANY of these:
+
+    • ANY "deep dive", "in-depth", "comprehensive", "detailed analysis",
+      "thorough", "exhaustive", or "full report" request on a topic
+    • ANY MARKET / INDUSTRY / COMPETITIVE research — "market research on X",
+      "competitive landscape of X", "due diligence on X", "industry analysis"
+    • ANY multi-angle COMPARISON — "X vs Y", "compare A, B and C", "pros and
+      cons of X", where one shallow search clearly isn't enough
+    • ANY request that explicitly or implicitly wants SOURCES, CITATIONS, or
+      a SAVEABLE REPORT, not just a one-line answer
+    • ANY "enterprise-grade" or "investment memo" / "feasibility study" style
+      ask that needs 20-50 sources, not 1
+    • Even a SIMPLE factual question — WaveSearch auto-detects that too and
+      spends only 1-2 searches instead of over-researching it
+
+    WaveSearch NEVER returns an empty-handed answer: if live search is
+    temporarily thin, it still answers from the model's own knowledge and
+    says so (`groundedInLiveResults: false`). If its own daily quota is fully
+    exhausted, it does not fail either — it QUEUES the request and resumes it
+    automatically once quota resets (`/api/wavesearch/resume/{jobId}`).
+
+    This is a separate, standalone, SELF-CONTAINED agent — it does not share
+    state, code, or quota with the Wikipedia, GlobalWire, or plain Sarvam AI
+    agents in this backend.
+
+
+    ███████████████████████████████████████████████████████████████████
+    █  SMART SEARCH BUDGET SYSTEM                                      █
+    ███████████████████████████████████████████████████████████████████
+
+    • SIMPLE query   → 1-2 live searches   (e.g. "what is the capital of France")
+    • NORMAL research → 3-5 live searches   (e.g. "compare React and Vue")
+    • DEEP research   → 10-20 live searches (e.g. "in-depth analysis of X")
+    • ENTERPRISE research → 20-50 live searches, capped by remaining daily
+      quota (e.g. "comprehensive market research report on X")
+
+    Depth is auto-detected from the query's wording and length, or can be
+    forced with the `depth` parameter. A self-managed daily quota
+    (resettable, see `/api/wavesearch/quota`) guarantees a single request can
+    never exhaust the whole free LangSearch allowance.
+
+
+    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    ▓  3 ENDPOINTS                                                     ▓
+    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+    1. `/api/wavesearch/search` — DEFAULT endpoint. Runs the budgeted
+       multi-angle research and returns a synthesized answer, the deduped
+       source list, and a markdown report string. Use for ANY question that
+       deserves real research rather than a single shallow lookup.
+    2. `/api/wavesearch/report` — Same research, returned as a downloadable
+       `.md` file (sources report). Use when the user wants a saveable
+       research document rather than inline JSON.
+    3. `/api/wavesearch/quota` — Current daily search + token budget status.
+       Use to check remaining quota before kicking off a large "enterprise"
+       request.
+    4. `/api/wavesearch/resume/{jobId}` — Resume a research request that was
+       queued because the daily quota was exhausted.
+
+
+    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+    ▓  QUOTA PROTECTION LAYER                                          ▓
+    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+    • Each request has a per-depth TOKEN BUDGET that caps how much context is
+      sent to the AI model.
+    • Identical sub-searches within a 15-minute window are served from an
+      in-memory CACHE instead of spending another live search.
+    • Only webpages actually relevant to the query are kept; irrelevant hits
+      are filtered out before they ever reach the answer step.
+    • FULL WEBPAGE TEXT is fetched only for the handful of most important
+      sources (0 for simple, 1 for normal, 3 for deep, 5 for enterprise) —
+      everything else stays on the cheap search snippet.
+    • Every response reports the exact input/output tokens that request used
+      (`tokenUsage`), alongside the live daily search and token quotas.
+    • At 80% of the daily quota, responses include a `warnings` entry.
+    • At 95%, new `deep`/`enterprise` requests are automatically downgraded
+      to `normal` depth to conserve the remaining quota (also reported in
+      `warnings`, with `requestedDepth` showing what was originally asked).
+    • If the daily quota is fully exhausted, the request is not run
+      half-starved — it is queued (`status: "queued"`, with a `jobId`) and
+      resumes automatically once quota resets, or can be resumed manually via
+      `/api/wavesearch/resume/{jobId}`.
+  version: 1.1.0
+servers:
+  - url: https://serverless.on-demand.io/apps/agentic-ai
+    description: Live deployed server
+  - url: http://localhost:5000
+    description: Local development server
+
+paths:
+  /api/wavesearch/search:
+    get:
+      summary: Research a query with the Smart Search Budget System and return a grounded AI answer
+      description: >-
+        Classifies the query into simple/normal/deep/enterprise research
+        depth, spends the matching number of LangSearch calls (each covering
+        a different angle: overview, statistics, pros/cons, expert opinion,
+        case studies, etc.), dedupes the results into a source list, and has
+        Sarvam AI synthesize one grounded natural-language answer. Always
+        returns a usable answer even if live search is temporarily
+        unavailable.
+      operationId: wavesearchSearch
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Any research question or topic
+          schema:
+            type: string
+          example: in-depth analysis of the global EV battery supply chain
+        - name: depth
+          in: query
+          required: false
+          description: Force a research depth instead of auto-detecting it from the query
+          schema:
+            type: string
+            enum: [simple, normal, deep, enterprise]
+        - name: searches
+          in: query
+          required: false
+          description: Request an exact number of searches (still clamped to the chosen depth's range and to remaining daily quota)
+          schema:
+            type: integer
+        - name: maxResultsPerSearch
+          in: query
+          required: false
+          description: LangSearch results to fetch per individual search angle
+          schema:
+            type: integer
+            default: 5
+        - name: maxSources
+          in: query
+          required: false
+          description: Maximum number of deduped sources to keep/cite
+          schema:
+            type: integer
+            default: 15
+      responses:
+        "200":
+          description: Synthesized answer, source list, and markdown report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaveSearchResponse"
+        "202":
+          description: Daily quota exhausted — request queued instead of run; see `/api/wavesearch/resume/{jobId}`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaveSearchQueuedResponse"
+        "400":
+          description: Missing required query param
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/wavesearch/report:
+    get:
+      summary: Same budgeted research, returned as a downloadable markdown report file
+      description: >-
+        Runs the identical Smart Search Budget System research as
+        `/api/wavesearch/search`, but responds with `Content-Type:
+        text/markdown` and (by default) a `Content-Disposition: attachment`
+        header so the result downloads as a `.md` sources report file. Pass
+        `download=false` to render it inline instead.
+      operationId: wavesearchReport
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          example: comprehensive market research report on the Indian fintech industry
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [simple, normal, deep, enterprise]
+        - name: searches
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: download
+          in: query
+          required: false
+          description: Set to "false" to view the report inline instead of downloading it
+          schema:
+            type: string
+            enum: ["true", "false"]
+            default: "true"
+      responses:
+        "200":
+          description: Markdown research report
+          content:
+            text/markdown:
+              schema:
+                type: string
+        "202":
+          description: Daily quota exhausted — request queued instead of run; see `/api/wavesearch/resume/{jobId}`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaveSearchQueuedResponse"
+        "400":
+          description: Missing required query param
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/wavesearch/resume/{jobId}:
+    get:
+      summary: Resume a research request that was queued because the daily quota was exhausted
+      description: >-
+        If quota has since reset, this runs the saved research request and
+        returns the full `WaveSearchResponse`. If quota is still exhausted,
+        it returns the job's current queued status instead. Queued jobs also
+        resume automatically on their own once quota resets, as long as the
+        server process that queued them is still running.
+      operationId: wavesearchResume
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: The `jobId` returned by a queued `/search` or `/report` call
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The job has finished — full research result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaveSearchResponse"
+        "202":
+          description: Still queued — quota has not reset yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobStatusResponse"
+        "404":
+          description: No queued job with that id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/wavesearch/quota:
+    get:
+      summary: Check the current daily search + token budget quota status
+      description: >-
+        Returns how much of the self-managed daily LangSearch search quota
+        and the daily AI token quota have been used and how much remains.
+        Useful before starting a large "enterprise" depth request.
+      operationId: wavesearchQuota
+      responses:
+        "200":
+          description: Quota status for both searches and tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  search:
+                    $ref: "#/components/schemas/QuotaResponse"
+                  tokens:
+                    $ref: "#/components/schemas/QuotaResponse"
+
+components:
+  schemas:
+    WaveSource:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        url:
+          type: string
+        snippet:
+          type: string
+        publishedDate:
+          type: string
+          nullable: true
+        fullText:
+          type: string
+          nullable: true
+          description: Full fetched webpage text — only present for the handful of most important sources
+        fullTextFetched:
+          type: boolean
+          description: True if this source was important enough to fetch full webpage text for, instead of just a search snippet
+
+    QuotaResponse:
+      type: object
+      properties:
+        dailyLimit:
+          type: integer
+        used:
+          type: integer
+        remaining:
+          type: integer
+        resetsAt:
+          type: string
+        usedRatio:
+          type: number
+          description: used / dailyLimit, from 0 to 1 — crosses the 0.8 warning and 0.95 pause thresholds
+
+    TokenUsage:
+      type: object
+      properties:
+        input:
+          type: integer
+        output:
+          type: integer
+        total:
+          type: integer
+
+    WaveSearchResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [completed]
+        query:
+          type: string
+        depth:
+          type: string
+          enum: [simple, normal, deep, enterprise]
+          description: The depth the request actually ran at (may be downgraded from requestedDepth by the 95% quota-protection pause)
+        requestedDepth:
+          type: string
+          enum: [simple, normal, deep, enterprise]
+          description: The depth that was originally detected/requested, before any quota-protection downgrade
+        searchesPlanned:
+          type: integer
+        searchesUsed:
+          type: integer
+          description: Live LangSearch calls actually spent (excludes cache hits)
+        cacheHits:
+          type: integer
+          description: Sub-searches served from the duplicate-search cache instead of spending quota
+        quota:
+          $ref: "#/components/schemas/QuotaResponse"
+        tokenQuota:
+          $ref: "#/components/schemas/QuotaResponse"
+        tokenBudget:
+          type: integer
+          description: The context token budget allotted to this request's depth
+        tokenUsage:
+          $ref: "#/components/schemas/TokenUsage"
+        tokenBudgetExceeded:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Quota-protection notices — e.g. 80% warning or 95% auto-downgrade
+        answer:
+          type: string
+          nullable: true
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/WaveSource"
+        sourceCount:
+          type: integer
+        groundedInLiveResults:
+          type: boolean
+        reportMarkdown:
+          type: string
+          description: The full research report, formatted as markdown, ready to save as a file
+
+    WaveSearchQueuedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [queued]
+        jobId:
+          type: string
+        resumeAfter:
+          type: string
+          description: Timestamp after which this job can be resumed (the quota's reset time)
+        query:
+          type: string
+        message:
+          type: string
+        quota:
+          $ref: "#/components/schemas/QuotaResponse"
+        tokenQuota:
+          $ref: "#/components/schemas/QuotaResponse"
+
+    JobStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [queued, running]
+        jobId:
+          type: string
+        resumeAfter:
+          type: string
+        query:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
