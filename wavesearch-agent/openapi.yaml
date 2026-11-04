@@ -386,6 +386,10 @@ components:
           items:
             type: string
           description: Quota-protection notices — e.g. 80% warning or 95% auto-downgrade
+        searchError:
+          type: string
+          nullable: true
+          description: Set only when every LangSearch call for this request failed (e.g. a missing/invalid LANGSEARCH_API_KEY) — distinguishes "search backend is misconfigured" from a genuine "no results found"
         answer:
           type: string
           nullable: true

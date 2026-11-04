@@ -330,10 +330,15 @@ async function runInBatches(items, concurrency, worker) {
   return results;
 }
 
+function describeSearchError(err) {
+  return err.response?.data?.error || err.response?.data?.message || err.message || "Unknown LangSearch error";
+}
+
 async function runSearches(subQueries, { maxResultsPerSearch, apiKey, queryTerms }) {
   let apiCallsUsed = 0;
   let cacheHits = 0;
   let allResults = [];
+  const errors = [];
 
   const settled = await runInBatches(subQueries, 8, async (subQuery) => {
     const cached = getCached(subQuery);
@@ -351,11 +356,15 @@ async function runSearches(subQueries, { maxResultsPerSearch, apiKey, queryTerms
   for (const outcome of settled) {
     if (outcome.status === "fulfilled") {
       allResults.push(...outcome.value);
+    } else {
+      const message = describeSearchError(outcome.reason || {});
+      console.error("[wavesearch] LangSearch call failed:", message);
+      if (!errors.includes(message)) errors.push(message);
     }
   }
 
   allResults = allResults.filter((r) => isRelevant(r, queryTerms));
-  return { allResults, apiCallsUsed, cacheHits };
+  return { allResults, apiCallsUsed, cacheHits, errors };
 }
 
 function dedupeByUrl(allResults) {
@@ -482,7 +491,7 @@ function scoreSentence(sentence, terms) {
   return terms.reduce((score, t) => (lower.includes(t) ? score + 1 : score), 0);
 }
 
-function buildExtractiveAnswer(query, sources, depth) {
+function buildExtractiveAnswer(query, sources, depth, searchError) {
   const terms = significantTerms(query);
   const maxSentences = ANSWER_SENTENCE_COUNT[depth] || 4;
 
@@ -513,6 +522,11 @@ function buildExtractiveAnswer(query, sources, depth) {
   }
 
   if (picked.length === 0) {
+    if (searchError) {
+      return `Live search could not be completed — the LangSearch API call failed with: "${searchError}". ` +
+        `This is a search backend/configuration error (e.g. a missing or invalid LANGSEARCH_API_KEY on this server), ` +
+        `not an indication that no results exist for "${query}". Fix the API key/configuration and retry.`;
+    }
     return sources.length > 0
       ? `No sentence in the retrieved sources directly matched "${query}" closely enough to extract — see the sources below for the raw material found.`
       : `No live search results were found for "${query}". Try rephrasing the query, or forcing a deeper \`depth\`.`;
@@ -524,7 +538,7 @@ function buildExtractiveAnswer(query, sources, depth) {
 
 function buildReportMarkdown({
   query, depth, requestedDepth, searchesPlanned, searchesUsed, cacheHits,
-  quota, tokenQuota, tokenUsage, warnings, answer, sources, groundedInLiveResults,
+  quota, tokenQuota, tokenUsage, warnings, answer, sources, groundedInLiveResults, searchError,
 }) {
   const sourceLines = sources.length
     ? sources.map((s) => `${s.id}. [${s.title}](${s.url})${s.publishedDate ? ` — ${s.publishedDate}` : ""}${s.fullTextFetched ? " _(full text)_" : ""}\n   > ${(s.fullText || s.snippet).replace(/\n/g, " ").slice(0, 400)}`).join("\n\n")
@@ -532,6 +546,7 @@ function buildReportMarkdown({
 
   const warningLines = warnings.length ? warnings.map((w) => `- ⚠️ ${w}`).join("\n") : "- none";
   const depthLine = requestedDepth !== depth ? `${requestedDepth} → downgraded to ${depth} (quota protection)` : depth;
+  const errorLine = searchError ? `\n**⚠️ Search backend error:** ${searchError} — check the LangSearch API key/configuration on this server.\n` : "";
 
   return `# WaveSearch Research Report
 
@@ -539,7 +554,7 @@ function buildReportMarkdown({
 **Depth:** ${depthLine} (${searchesUsed}/${searchesPlanned} new searches, ${cacheHits} served from cache)
 **Grounded in live results:** ${groundedInLiveResults ? "yes" : "no"}
 **Generated:** ${new Date().toISOString()}
-
+${errorLine}
 ## Answer
 
 ${answer || "_No answer generated._"}
@@ -659,18 +674,26 @@ async function _researchCore(query, {
   let searchesUsed = 0;
   let cacheHits = 0;
   let deduped = [];
+  let searchErrors = [];
 
   if (subQueries.length > 0) {
-    const { allResults, apiCallsUsed, cacheHits: hits } = await runSearches(subQueries, {
+    const { allResults, apiCallsUsed, cacheHits: hits, errors } = await runSearches(subQueries, {
       maxResultsPerSearch,
       apiKey: langsearchApiKey,
       queryTerms,
     });
     searchesUsed = apiCallsUsed;
     cacheHits = hits;
+    searchErrors = errors;
     recordUsage(apiCallsUsed); // only real API calls spend quota, not cache hits
     deduped = dedupeByUrl(allResults);
   }
+
+  // Only surfaced as a hard error when EVERY sub-search failed (not a single
+  // flaky one) — otherwise a partial result set is reported normally.
+  const searchError = searchesUsed === 0 && cacheHits === 0 && searchErrors.length > 0
+    ? searchErrors[0]
+    : null;
 
   let sources = buildSources(deduped, maxSources);
   sources = await enrichImportantSources(sources, FULL_TEXT_SOURCE_COUNT[depth] || 0);
@@ -679,7 +702,7 @@ async function _researchCore(query, {
   const tokenBudget = TOKEN_BUDGETS[depth];
   const { contextTokens } = buildContext(sources, tokenBudget);
 
-  const answer = buildExtractiveAnswer(query, sources, depth);
+  const answer = buildExtractiveAnswer(query, sources, depth, searchError);
 
   const tokenUsage = {
     input: contextTokens,
@@ -692,10 +715,14 @@ async function _researchCore(query, {
   const tokenQuota = getTokenQuota();
   const tokenBudgetExceeded = tokenUsage.total > tokenBudget * 1.5;
 
+  if (searchError) {
+    warnings.push(`LangSearch calls failed: ${searchError}`);
+  }
+
   const reportMarkdown = buildReportMarkdown({
     query, depth, requestedDepth, searchesPlanned, searchesUsed, cacheHits,
     quota, tokenQuota, tokenUsage, warnings,
-    answer, sources, groundedInLiveResults,
+    answer, sources, groundedInLiveResults, searchError,
   });
 
   return {
@@ -712,6 +739,7 @@ async function _researchCore(query, {
     tokenUsage,
     tokenBudgetExceeded,
     warnings,
+    searchError,
     answer,
     sources,
     sourceCount: sources.length,
