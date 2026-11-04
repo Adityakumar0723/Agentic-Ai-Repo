@@ -276,6 +276,46 @@ const ANGLES = [
   "practical use cases",
 ];
 
+// Human-readable section headers for each angle, used to group the final
+// answer into themed sections instead of one flat list of sentences.
+const ANGLE_LABELS = {
+  "": "Overview",
+  "overview": "Overview",
+  "latest news and updates": "Latest Developments",
+  "detailed analysis": "Detailed Analysis",
+  "statistics and data": "Statistics & Data",
+  "pros and cons": "Pros & Cons",
+  "expert opinions and commentary": "Expert Opinions",
+  "case studies and real examples": "Case Studies",
+  "comparison with alternatives": "Comparisons",
+  "history and background": "Background & History",
+  "future trends and predictions": "Future Trends",
+  "challenges and risks": "Risks & Challenges",
+  "best practices": "Best Practices",
+  "official sources and documentation": "Official Sources",
+  "reviews and user experiences": "Reviews & Experiences",
+  "how it works": "How It Works",
+  "key benefits": "Key Benefits",
+  "common mistakes to avoid": "Common Mistakes",
+  "cost and pricing": "Cost & Pricing",
+  "frequently asked questions": "FAQs",
+  "recent research and studies": "Recent Research",
+  "regulations and compliance": "Regulations & Compliance",
+  "market size and growth": "Market Size & Growth",
+  "key players and competitors": "Key Players",
+  "regional and global perspective": "Regional Perspective",
+  "technical details and specifications": "Technical Details",
+  "economic impact": "Economic Impact",
+  "social impact": "Social Impact",
+  "criticism and controversies": "Criticism & Controversies",
+  "practical use cases": "Use Cases",
+};
+
+function angleLabel(angle) {
+  const base = (angle || "").replace(/\s*\(part \d+\)$/, "");
+  return ANGLE_LABELS[base] || "Additional Findings";
+}
+
 const MAX_SEARCHABLE_QUERY_LENGTH = 150;
 
 /**
@@ -307,7 +347,7 @@ function buildSubQueries(query, count) {
     const key = normalizeQuery(subQuery);
     if (seen.has(key)) continue; // belt-and-braces: never send a literal duplicate
     seen.add(key);
-    subQueries.push(subQuery);
+    subQueries.push({ subQuery, angle });
   }
   return subQueries;
 }
@@ -386,13 +426,13 @@ async function withRateLimitRetry(fn, { retries = 3, baseDelayMs = 500 } = {}) {
 // keep this low rather than maximizing parallelism.
 const SEARCH_CONCURRENCY = Number(process.env.WAVESEARCH_SEARCH_CONCURRENCY) || 3;
 
-async function runSearches(subQueries, { maxResultsPerSearch, apiKey, queryTerms }) {
+async function runSearches(subQueryObjs, { maxResultsPerSearch, apiKey, queryTerms }) {
   let apiCallsUsed = 0;
   let cacheHits = 0;
   let allResults = [];
   const errors = [];
 
-  const settled = await runInBatches(subQueries, SEARCH_CONCURRENCY, async (subQuery) => {
+  const settled = await runInBatches(subQueryObjs, SEARCH_CONCURRENCY, async ({ subQuery, angle }) => {
     const cached = getCached(subQuery);
     if (cached) {
       cacheHits += 1;
@@ -401,7 +441,7 @@ async function runSearches(subQueries, { maxResultsPerSearch, apiKey, queryTerms
     const data = await withRateLimitRetry(() =>
       langsearch.webSearch(subQuery, { maxResults: maxResultsPerSearch, apiKey })
     );
-    const results = data.results || [];
+    const results = (data.results || []).map((r) => ({ ...r, angle }));
     setCached(subQuery, results);
     apiCallsUsed += 1;
     return results;
@@ -421,13 +461,44 @@ async function runSearches(subQueries, { maxResultsPerSearch, apiKey, queryTerms
   return { allResults, apiCallsUsed, cacheHits, errors };
 }
 
+/**
+ * Normalizes a URL for dedup purposes: scheme and "www." don't make two
+ * pages different, nor does a trailing slash or a tracking query string
+ * (?utm_source=..., ?ref=..., etc.) — all common reasons the same article
+ * showed up under what looked like a different URL.
+ */
+function normalizeUrl(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    const path = u.pathname.replace(/\/+$/, "") || "/";
+    return `${host}${path}`.toLowerCase();
+  } catch {
+    return (url || "").trim().toLowerCase();
+  }
+}
+
+function normalizeTitle(title) {
+  return (title || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Dedupes on normalized URL AND on exact title match — two different URLs
+ * with the identical headline are almost always the same syndicated/mirrored
+ * article, not two independent sources.
+ */
 function dedupeByUrl(allResults) {
-  const seen = new Set();
+  const seenUrls = new Set();
+  const seenTitles = new Set();
   const deduped = [];
   for (const r of allResults) {
-    const key = (r.url || r.title || "").trim();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
+    const urlKey = r.url ? normalizeUrl(r.url) : "";
+    const titleKey = normalizeTitle(r.title);
+    if (!urlKey && !titleKey) continue;
+    if (urlKey && seenUrls.has(urlKey)) continue;
+    if (titleKey && titleKey.length > 15 && seenTitles.has(titleKey)) continue;
+    if (urlKey) seenUrls.add(urlKey);
+    if (titleKey && titleKey.length > 15) seenTitles.add(titleKey);
     deduped.push(r);
   }
   return deduped;
@@ -493,6 +564,7 @@ function buildSources(results, limit) {
     url: r.url,
     snippet: (r.content || "").slice(0, 400),
     publishedDate: r.publishedDate || null,
+    topic: r.angle !== undefined ? angleLabel(r.angle) : null,
   }));
 }
 
@@ -529,8 +601,8 @@ function buildContext(sources, tokenBudget) {
 //     have had their full webpage text fetched.
 // ---------------------------------------------------------------------------
 
-const ANSWER_SENTENCE_COUNT = { simple: 2, normal: 4, deep: 6, enterprise: 8 };
-const MAX_SENTENCES_PER_SOURCE = 2;
+const ANSWER_SENTENCE_COUNT = { simple: 3, normal: 6, deep: 12, enterprise: 18 };
+const MAX_SENTENCES_PER_SOURCE = 3;
 
 function splitSentences(text) {
   return (text || "")
@@ -545,9 +617,22 @@ function scoreSentence(sentence, terms) {
   return terms.reduce((score, t) => (lower.includes(t) ? score + 1 : score), 0);
 }
 
+// The order sections appear in when multiple are present — reads roughly
+// like a research brief rather than a random grab-bag of bullet points.
+const SECTION_ORDER = [
+  "Overview", "Background & History", "How It Works", "Key Players",
+  "Market Size & Growth", "Statistics & Data", "Comparisons", "Pros & Cons",
+  "Case Studies", "Technical Details", "Regulations & Compliance",
+  "Risks & Challenges", "Criticism & Controversies", "Economic Impact",
+  "Social Impact", "Expert Opinions", "Recent Research", "Latest Developments",
+  "Future Trends", "Best Practices", "Common Mistakes", "Cost & Pricing",
+  "Reviews & Experiences", "Regional Perspective", "Use Cases",
+  "Official Sources", "Detailed Analysis", "FAQs", "Additional Findings",
+];
+
 function buildExtractiveAnswer(query, sources, depth, searchError) {
   const terms = significantTerms(query);
-  const maxSentences = ANSWER_SENTENCE_COUNT[depth] || 4;
+  const maxSentences = ANSWER_SENTENCE_COUNT[depth] || 6;
 
   const candidates = [];
   for (const s of sources) {
@@ -555,7 +640,12 @@ function buildExtractiveAnswer(query, sources, depth, searchError) {
     for (const sentence of sentences) {
       const score = scoreSentence(sentence, terms);
       if (score === 0) continue;
-      candidates.push({ sentence, score: score + (s.fullTextFetched ? 0.5 : 0), sourceId: s.id });
+      candidates.push({
+        sentence,
+        score: score + (s.fullTextFetched ? 0.5 : 0),
+        sourceId: s.id,
+        section: s.topic || "Additional Findings",
+      });
     }
   }
 
@@ -587,8 +677,64 @@ function buildExtractiveAnswer(query, sources, depth, searchError) {
       : `No live search results were found for "${query}". Try rephrasing the query, or forcing a deeper \`depth\`.`;
   }
 
-  const lines = picked.map((p) => `- ${p.sentence} [${p.sourceId}]`);
-  return `Based on ${picked.length} live source${picked.length > 1 ? "s" : ""}:\n\n${lines.join("\n")}`;
+  // Group into sections so the answer reads like a structured brief. With
+  // only one section worth of content, skip headers and keep it a flat list.
+  const bySection = new Map();
+  for (const p of picked) {
+    if (!bySection.has(p.section)) bySection.set(p.section, []);
+    bySection.get(p.section).push(p);
+  }
+
+  const intro = `Based on ${picked.length} point${picked.length > 1 ? "s" : ""} pulled from ${new Set(picked.map((p) => p.sourceId)).size} live source(s) for "${query}":`;
+
+  if (bySection.size <= 1) {
+    const lines = picked.map((p) => `- ${p.sentence} [${p.sourceId}]`);
+    return `${intro}\n\n${lines.join("\n")}`;
+  }
+
+  const orderedSections = [...bySection.keys()].sort(
+    (a, b) => SECTION_ORDER.indexOf(a) - SECTION_ORDER.indexOf(b)
+  );
+
+  const blocks = orderedSections.map((section) => {
+    const lines = bySection.get(section).map((p) => `- ${p.sentence} [${p.sourceId}]`);
+    return `### ${section}\n${lines.join("\n")}`;
+  });
+
+  return `${intro}\n\n${blocks.join("\n\n")}`;
+}
+
+/**
+ * Chart-ready data (plain {labels, values} series — consumable by any
+ * bar/pie chart component without a UI needing to know this agent's
+ * internals) so a frontend can render research coverage visually instead
+ * of just reading JSON.
+ */
+function buildChartData({ sources, quota, tokenQuota, tokenUsage }) {
+  const topicCounts = new Map();
+  for (const s of sources) {
+    const topic = s.topic || "Additional Findings";
+    topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
+  }
+  const sortedTopics = [...topicCounts.entries()].sort((a, b) => b[1] - a[1]);
+
+  return {
+    sourcesByTopic: {
+      type: "bar",
+      labels: sortedTopics.map(([topic]) => topic),
+      values: sortedTopics.map(([, count]) => count),
+    },
+    searchQuotaUsage: {
+      type: "pie",
+      labels: ["Used today", "Remaining today"],
+      values: [quota.used, quota.remaining],
+    },
+    tokenUsageBreakdown: {
+      type: "pie",
+      labels: ["Input (sources read)", "Output (answer generated)"],
+      values: [tokenUsage.input, tokenUsage.output],
+    },
+  };
 }
 
 function buildReportMarkdown({
@@ -781,6 +927,8 @@ async function _researchCore(query, {
     answer, sources, groundedInLiveResults, searchError,
   });
 
+  const chartData = buildChartData({ sources, quota, tokenQuota, tokenUsage });
+
   return {
     status: "completed",
     query,
@@ -800,6 +948,7 @@ async function _researchCore(query, {
     sources,
     sourceCount: sources.length,
     groundedInLiveResults,
+    chartData,
     reportMarkdown,
   };
 }

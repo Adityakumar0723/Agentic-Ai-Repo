@@ -104,7 +104,7 @@ info:
       half-starved — it is queued (`status: "queued"`, with a `jobId`) and
       resumes automatically once quota resets, or can be resumed manually via
       `/api/wavesearch/resume/{jobId}`.
-  version: 2.0.0
+  version: 2.1.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
     description: Live deployed server
@@ -320,6 +320,43 @@ components:
         fullTextFetched:
           type: boolean
           description: True if this source was important enough to fetch full webpage text for, instead of just a search snippet
+        topic:
+          type: string
+          nullable: true
+          description: Which research angle/section this source was retrieved for (e.g. "Key Players", "Risks & Challenges") — matches the section headers in `answer`
+
+    ChartSeries:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bar, pie]
+          description: Suggested chart type for this series
+        labels:
+          type: array
+          items:
+            type: string
+        values:
+          type: array
+          items:
+            type: integer
+
+    ChartData:
+      type: object
+      description: Chart-ready {labels, values} series for rendering research coverage visually, independent of any specific charting library
+      properties:
+        sourcesByTopic:
+          allOf:
+            - $ref: "#/components/schemas/ChartSeries"
+          description: Number of sources found per research-angle section
+        searchQuotaUsage:
+          allOf:
+            - $ref: "#/components/schemas/ChartSeries"
+          description: Daily LangSearch quota used vs remaining
+        tokenUsageBreakdown:
+          allOf:
+            - $ref: "#/components/schemas/ChartSeries"
+          description: This request's input (sources read) vs output (answer generated) token split
 
     QuotaResponse:
       type: object
@@ -401,6 +438,8 @@ components:
           type: integer
         groundedInLiveResults:
           type: boolean
+        chartData:
+          $ref: "#/components/schemas/ChartData"
         reportMarkdown:
           type: string
           description: The full research report, formatted as markdown, ready to save as a file
