@@ -190,18 +190,21 @@ paths:
         - name: q
           in: query
           required: true
+          description: Any research question or topic
           schema:
             type: string
           example: comprehensive market research report on the Indian fintech industry
         - name: depth
           in: query
           required: false
+          description: Force a research depth instead of auto-detecting it from the query
           schema:
             type: string
             enum: [simple, normal, deep, enterprise]
         - name: searches
           in: query
           required: false
+          description: Request an exact number of searches (still clamped to the chosen depth's range and to remaining daily quota)
           schema:
             type: integer
         - name: download
