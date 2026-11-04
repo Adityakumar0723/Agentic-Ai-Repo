@@ -276,6 +276,27 @@ const ANGLES = [
   "practical use cases",
 ];
 
+const MAX_SEARCHABLE_QUERY_LENGTH = 150;
+
+/**
+ * LangSearch (like most web search APIs) expects a short, keyword-style
+ * query — not an essay. A multi-hundred-word research brief sent verbatim
+ * trips a generic "web search error" from LangSearch. This derives a short,
+ * punctuation-cleaned search phrase from the first part of the query, while
+ * the full original `query` is still used for relevance scoring, citations,
+ * and the response/report.
+ */
+function toSearchableQuery(query, maxLen = MAX_SEARCHABLE_QUERY_LENGTH) {
+  const sanitized = query
+    .replace(/["'""''(){}\[\];:]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (sanitized.length <= maxLen) return sanitized;
+  const truncated = sanitized.slice(0, maxLen);
+  const lastSpace = truncated.lastIndexOf(" ");
+  return (lastSpace > 40 ? truncated.slice(0, lastSpace) : truncated).trim();
+}
+
 function buildSubQueries(query, count) {
   const subQueries = [];
   const seen = new Set();
@@ -703,7 +724,8 @@ async function _researchCore(query, {
   const quotaBefore = getQuota();
   const searchesPlanned = pickSearchCount(depth, query, requestedSearches, quotaBefore.remaining);
   const queryTerms = significantTerms(query);
-  const subQueries = buildSubQueries(query, searchesPlanned);
+  const searchableQuery = toSearchableQuery(query);
+  const subQueries = buildSubQueries(searchableQuery, searchesPlanned);
 
   let searchesUsed = 0;
   let cacheHits = 0;
