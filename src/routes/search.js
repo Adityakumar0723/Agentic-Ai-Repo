@@ -1,5 +1,5 @@
 const express = require("express");
-const tavily = require("../services/tavilyService");
+const langsearch = require("../services/langsearchService");
 const sarvam = require("../services/sarvamService");
 
 const router = express.Router();
@@ -13,26 +13,25 @@ function buildContext(results = []) {
 
 // Allows keys to be supplied per-request (e.g. by a GPT/agent builder's
 // Authentication tab injecting them as headers), falling back to the
-// server's own TAVILY_API_KEY / SARVAM_API_KEY environment variables.
+// server's own LANGSEARCH_API_KEY / SARVAM_API_KEY environment variables.
 function getKeys(req) {
   return {
-    tavilyApiKey: req.get("TAVILY_API_KEY") || req.get("x-tavily-api-key"),
+    langsearchApiKey: req.get("LANGSEARCH_API_KEY") || req.get("x-langsearch-api-key"),
     sarvamApiKey: req.get("SARVAM_API_KEY") || req.get("x-sarvam-api-key"),
   };
 }
 
 router.get("/search", async (req, res, next) => {
-  const { q, maxResults, depth, timeRange } = req.query;
+  const { q, maxResults, timeRange } = req.query;
   if (!q) return res.status(400).json({ error: "Query param 'q' is required" });
-  const { tavilyApiKey, sarvamApiKey } = getKeys(req);
+  const { langsearchApiKey, sarvamApiKey } = getKeys(req);
 
   let searchData = null;
   try {
-    searchData = await tavily.webSearch(q, {
+    searchData = await langsearch.webSearch(q, {
       maxResults: maxResults ? Number(maxResults) : undefined,
-      searchDepth: depth,
       timeRange,
-      apiKey: tavilyApiKey,
+      apiKey: langsearchApiKey,
     });
   } catch (err) {
     // Live search unavailable — Sarvam AI will still answer from its own knowledge.
@@ -55,14 +54,14 @@ router.get("/search", async (req, res, next) => {
 router.get("/news", async (req, res, next) => {
   const { q, maxResults, timeRange } = req.query;
   if (!q) return res.status(400).json({ error: "Query param 'q' is required" });
-  const { tavilyApiKey, sarvamApiKey } = getKeys(req);
+  const { langsearchApiKey, sarvamApiKey } = getKeys(req);
 
   let newsData = null;
   try {
-    newsData = await tavily.newsSearch(q, {
+    newsData = await langsearch.newsSearch(q, {
       maxResults: maxResults ? Number(maxResults) : undefined,
       timeRange,
-      apiKey: tavilyApiKey,
+      apiKey: langsearchApiKey,
     });
   } catch (err) {
     // Live news search unavailable — Sarvam AI will still answer from its own knowledge.

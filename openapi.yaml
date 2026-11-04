@@ -16,7 +16,7 @@ info:
        → Endpoints: /api/news/sources, /api/news/categories, /api/news/feed, /api/news/search, etc.
 
     3. SARVAM AI AGENT (sarvam-agent/openapi.yaml)
-       → AI-powered web search & answers via Tavily + Sarvam AI
+       → AI-powered web search & answers via LangSearch + Sarvam AI
        → Endpoints: /api/search/search, /api/search/news, /api/search/answer
 
 

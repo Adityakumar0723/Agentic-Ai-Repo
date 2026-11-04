@@ -4,7 +4,7 @@ info:
   description: >-
     Sarvam AI Agent is a powerful AI-powered web search and answer engine that
     provides INSTANT, synthesized natural-language answers to ANY question —
-    grounded in LIVE web search results via Tavily. This is your general-purpose
+    grounded in LIVE web search results via LangSearch. This is your general-purpose
     answer engine for real-time information, current events, explanations,
     comparisons, recommendations, and any open-ended question.
 
@@ -62,7 +62,7 @@ info:
     • SYNTHESIZED ANSWERS: Every endpoint returns a ready-to-read natural-language
       `answer` field — never raw, unprocessed search results alone.
     • LIVE WEB GROUNDING: `/search` and `/news` ground the answer in live web/news
-      results fetched via Tavily (also returned under `results` for citation).
+      results fetched via LangSearch (also returned under `results` for citation).
     • GRACEFUL FALLBACK: If live search is temporarily unavailable, Sarvam AI still
       answers from its own knowledge (`groundedInLiveResults: false`).
     • NEVER FAILS: These endpoints ALWAYS return a usable answer for a valid query.
@@ -84,7 +84,7 @@ paths:
         the user asks anything that needs an explanation, a fact, a definition,
         a comparison, or up-to-date information — "what is X", "who is X",
         "latest on X", "how does X work", etc. Sarvam AI generates the final
-        natural-language `answer`, grounded in live web results fetched via Tavily
+        natural-language `answer`, grounded in live web results fetched via LangSearch
         (also returned under `results` for citation). If live search is unavailable,
         Sarvam AI still answers from its own knowledge instead of failing, so this
         endpoint ALWAYS returns a usable answer for a valid query.
@@ -100,18 +100,10 @@ paths:
         - name: maxResults
           in: query
           required: false
-          description: Number of web results to ground the answer in (max 20)
+          description: Number of web results to ground the answer in (max 50)
           schema:
             type: integer
             default: 10
-        - name: depth
-          in: query
-          required: false
-          description: Search depth — use "advanced" for complex or niche queries
-          schema:
-            type: string
-            enum: [basic, advanced]
-            default: basic
         - name: timeRange
           in: query
           required: false
@@ -140,7 +132,7 @@ paths:
         Call this instead of `/api/search/search` when the user explicitly wants
         recent or breaking news, or asks "what's happening with X", "latest news
         about X", "today's X news". Sarvam AI generates the final natural-language
-        `answer`, grounded in live news results fetched via Tavily (also returned
+        `answer`, grounded in live news results fetched via LangSearch (also returned
         under `results` for citation). If live search is unavailable, Sarvam AI
         still answers from its own knowledge instead of failing.
       operationId: sarvamNewsSearch
@@ -155,7 +147,7 @@ paths:
         - name: maxResults
           in: query
           required: false
-          description: Number of news results to ground the answer in (max 20)
+          description: Number of news results to ground the answer in (max 50)
           schema:
             type: integer
             default: 10
