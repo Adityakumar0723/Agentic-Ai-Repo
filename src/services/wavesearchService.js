@@ -334,19 +334,52 @@ function describeSearchError(err) {
   return err.response?.data?.error || err.response?.data?.message || err.message || "Unknown LangSearch error";
 }
 
+function isRateLimitError(err) {
+  if (err.response?.status === 429) return true;
+  const message = describeSearchError(err).toLowerCase();
+  return /qps|rate limit|concurrency|too many requests/.test(message);
+}
+
+async function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * LangSearch's free tier enforces a QPS/concurrency cap. Firing too many
+ * sub-searches at once trips "QPS or search concurrency limit reached" —
+ * this retries just those with jittered exponential backoff instead of
+ * giving up on the first rate-limit hit.
+ */
+async function withRateLimitRetry(fn, { retries = 3, baseDelayMs = 500 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isRateLimitError(err) || attempt >= retries) throw err;
+      await sleep(baseDelayMs * 2 ** attempt + Math.random() * 200);
+    }
+  }
+}
+
+// LangSearch's QPS cap means we can't fire many sub-searches at once —
+// keep this low rather than maximizing parallelism.
+const SEARCH_CONCURRENCY = Number(process.env.WAVESEARCH_SEARCH_CONCURRENCY) || 3;
+
 async function runSearches(subQueries, { maxResultsPerSearch, apiKey, queryTerms }) {
   let apiCallsUsed = 0;
   let cacheHits = 0;
   let allResults = [];
   const errors = [];
 
-  const settled = await runInBatches(subQueries, 8, async (subQuery) => {
+  const settled = await runInBatches(subQueries, SEARCH_CONCURRENCY, async (subQuery) => {
     const cached = getCached(subQuery);
     if (cached) {
       cacheHits += 1;
       return cached;
     }
-    const data = await langsearch.webSearch(subQuery, { maxResults: maxResultsPerSearch, apiKey });
+    const data = await withRateLimitRetry(() =>
+      langsearch.webSearch(subQuery, { maxResults: maxResultsPerSearch, apiKey })
+    );
     const results = data.results || [];
     setCached(subQuery, results);
     apiCallsUsed += 1;
@@ -523,9 +556,10 @@ function buildExtractiveAnswer(query, sources, depth, searchError) {
 
   if (picked.length === 0) {
     if (searchError) {
-      return `Live search could not be completed — the LangSearch API call failed with: "${searchError}". ` +
-        `This is a search backend/configuration error (e.g. a missing or invalid LANGSEARCH_API_KEY on this server), ` +
-        `not an indication that no results exist for "${query}". Fix the API key/configuration and retry.`;
+      return `Live search could not be completed — every LangSearch call for this request failed with: "${searchError}". ` +
+        `This is a search backend error (misconfiguration, rate limiting, or an outage), ` +
+        `not an indication that no results exist for "${query}". Retrying, lowering \`maxResultsPerSearch\`/\`depth\`, ` +
+        `or checking the LangSearch API key/quota should resolve it.`;
     }
     return sources.length > 0
       ? `No sentence in the retrieved sources directly matched "${query}" closely enough to extract — see the sources below for the raw material found.`
@@ -546,7 +580,7 @@ function buildReportMarkdown({
 
   const warningLines = warnings.length ? warnings.map((w) => `- ⚠️ ${w}`).join("\n") : "- none";
   const depthLine = requestedDepth !== depth ? `${requestedDepth} → downgraded to ${depth} (quota protection)` : depth;
-  const errorLine = searchError ? `\n**⚠️ Search backend error:** ${searchError} — check the LangSearch API key/configuration on this server.\n` : "";
+  const errorLine = searchError ? `\n**⚠️ Search backend error:** ${searchError} — check the LangSearch API key, quota, and rate limits for this server.\n` : "";
 
   return `# WaveSearch Research Report
 
