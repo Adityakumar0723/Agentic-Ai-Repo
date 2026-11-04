@@ -33,15 +33,18 @@ info:
     • Even a SIMPLE factual question — WaveSearch auto-detects that too and
       spends only 1-2 searches instead of over-researching it
 
-    WaveSearch NEVER returns an empty-handed answer: if live search is
-    temporarily thin, it still answers from the model's own knowledge and
-    says so (`groundedInLiveResults: false`). If its own daily quota is fully
-    exhausted, it does not fail either — it QUEUES the request and resumes it
-    automatically once quota resets (`/api/wavesearch/resume/{jobId}`).
+    The answer is built entirely in-process, extractively, straight from the
+    live LangSearch results — no other agent and no external LLM is called.
+    If no live results are found for a query, `groundedInLiveResults` comes
+    back `false` and the answer says so plainly instead of guessing. If its
+    own daily quota is fully exhausted, it does not fail either — it QUEUES
+    the request and resumes it automatically once quota resets
+    (`/api/wavesearch/resume/{jobId}`).
 
-    This is a separate, standalone, SELF-CONTAINED agent — it does not share
-    state, code, or quota with the Wikipedia, GlobalWire, or plain Sarvam AI
-    agents in this backend.
+    This is a separate, standalone, FULLY SELF-CONTAINED agent — it does not
+    share state, code, or quota with the Wikipedia, GlobalWire, or Sarvam AI
+    agents in this backend, and calls none of them. LangSearch is the only
+    external service it depends on.
 
 
     ███████████████████████████████████████████████████████████████████
@@ -82,8 +85,8 @@ info:
     ▓  QUOTA PROTECTION LAYER                                          ▓
     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 
-    • Each request has a per-depth TOKEN BUDGET that caps how much context is
-      sent to the AI model.
+    • Each request has a per-depth TOKEN BUDGET that caps how much source
+      text this agent reads when building its answer.
     • Identical sub-searches within a 15-minute window are served from an
       in-memory CACHE instead of spending another live search.
     • Only webpages actually relevant to the query are kept; irrelevant hits
@@ -101,7 +104,7 @@ info:
       half-starved — it is queued (`status: "queued"`, with a `jobId`) and
       resumes automatically once quota resets, or can be resumed manually via
       `/api/wavesearch/resume/{jobId}`.
-  version: 1.1.0
+  version: 2.0.0
 servers:
   - url: https://serverless.on-demand.io/apps/agentic-ai
     description: Live deployed server
@@ -111,15 +114,16 @@ servers:
 paths:
   /api/wavesearch/search:
     get:
-      summary: Research a query with the Smart Search Budget System and return a grounded AI answer
+      summary: Research a query with the Smart Search Budget System and return a grounded answer built from live sources
       description: >-
         Classifies the query into simple/normal/deep/enterprise research
         depth, spends the matching number of LangSearch calls (each covering
         a different angle: overview, statistics, pros/cons, expert opinion,
-        case studies, etc.), dedupes the results into a source list, and has
-        Sarvam AI synthesize one grounded natural-language answer. Always
-        returns a usable answer even if live search is temporarily
-        unavailable.
+        case studies, etc.), dedupes and filters the results into a source
+        list, and extractively synthesizes one grounded answer directly from
+        those sources — no other agent or external LLM is called. If no live
+        results are found, `groundedInLiveResults` is `false` and the answer
+        says so instead of guessing.
       operationId: wavesearchSearch
       parameters:
         - name: q

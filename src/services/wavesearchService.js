@@ -1,24 +1,26 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const langsearch = require("./langsearchService");
-const sarvam = require("./sarvamService");
 
 /**
- * WaveSearch Agent — brand new, standalone agent. Does not import from or
- * modify wikipediaService.js, rssService.js/redditService.js (GlobalWire),
- * or anything belonging to another agent. Only LangSearch (search) and
- * Sarvam AI (answer synthesis) are reused as-is, exactly like the existing
- * Sarvam AI agent already does in search.js.
+ * WaveSearch Agent — brand new, fully standalone agent. Does not import
+ * from or depend on wikipediaService.js, rssService.js/redditService.js
+ * (GlobalWire), or sarvamService.js (Sarvam AI). WaveSearch has no
+ * dependency on any other agent in this repo — it only talks to
+ * LangSearch for live search, and every answer is synthesized in-process
+ * from those results. No external LLM/API key is needed beyond LangSearch.
  *
  * Core idea: a "Smart Search Budget System" — classify how deep a query
  * needs to go, spend a matching number of LangSearch calls researching it
- * from multiple angles, then hand everything to Sarvam AI to synthesize one
- * grounded answer with a generated sources report (markdown "file").
+ * from multiple angles, then extractively synthesize one grounded answer
+ * directly from the live results, plus a generated sources report
+ * (markdown "file").
  *
- * On top of that sits a quota-protection layer: a token budget per task,
- * a duplicate-search cache, relevance filtering, full-text fetching only
- * for the most important sources, per-response token tracking, 80%/95%
- * quota thresholds, and a queue+resume path for when quota runs out.
+ * On top of that sits a quota-protection layer: a token/content budget
+ * per task, a duplicate-search cache, relevance filtering, full-text
+ * fetching only for the most important sources, per-response usage
+ * tracking, 80%/95% quota thresholds, and a queue+resume path for when
+ * quota runs out.
  */
 
 // ---------------------------------------------------------------------------
@@ -32,8 +34,10 @@ const BUDGETS = {
   enterprise: { min: 20, max: 50 },
 };
 
-// Per-depth token budget for the context handed to Sarvam AI (rough
-// chars-per-token estimate of 4 is used to turn this into a char cap).
+// Per-depth token budget for how much source text this request is allowed
+// to read/use when building its answer (rough chars-per-token estimate of
+// 4 is used to turn this into a char cap). Purely internal — no external
+// LLM is involved, so this just bounds this agent's own processing.
 const TOKEN_BUDGETS = {
   simple: 800,
   normal: 2000,
@@ -122,11 +126,10 @@ function pickSearchCount(depth, query, requestedSearches, remainingQuota) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Quota trackers — self-imposed daily caps so the free LangSearch /
-//    Sarvam AI quotas are never burned through by one big "enterprise"
-//    request. Reset at UTC midnight. Purely in-memory (per server process)
-//    by design — this agent has no database of its own and doesn't touch
-//    anyone else's.
+// 2. Quota trackers — self-imposed daily caps so the free LangSearch quota
+//    is never burned through by one big "enterprise" request. Reset at UTC
+//    midnight. Purely in-memory (per server process) by design — this
+//    agent has no database of its own and doesn't touch anyone else's.
 // ---------------------------------------------------------------------------
 
 const DAILY_SEARCH_LIMIT = Number(process.env.WAVESEARCH_DAILY_SEARCH_QUOTA) || 1000;
@@ -435,9 +438,9 @@ function estimateTokens(text) {
 }
 
 /**
- * Quota protection item #1: cap the context handed to Sarvam AI to the
- * depth's token budget (full text for important sources first, then
- * snippets for the rest, stopping once the budget is spent).
+ * Quota protection item #1: cap how much source text this request reads
+ * to the depth's token budget (full text for important sources first,
+ * then snippets for the rest, stopping once the budget is spent).
  */
 function buildContext(sources, tokenBudget) {
   const lines = [];
@@ -455,13 +458,77 @@ function buildContext(sources, tokenBudget) {
   return { context: lines.join("\n\n"), contextTokens: used };
 }
 
+// ---------------------------------------------------------------------------
+// 7b. Extractive answer synthesis — built entirely in-process from the live
+//     LangSearch results. No other agent, and no external LLM, is involved:
+//     sentences are pulled straight out of the sources that best match the
+//     query's significant terms, favoring the sources important enough to
+//     have had their full webpage text fetched.
+// ---------------------------------------------------------------------------
+
+const ANSWER_SENTENCE_COUNT = { simple: 2, normal: 4, deep: 6, enterprise: 8 };
+const MAX_SENTENCES_PER_SOURCE = 2;
+
+function splitSentences(text) {
+  return (text || "")
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.?!])\s+(?=[A-Z0-9])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 30 && s.length < 400);
+}
+
+function scoreSentence(sentence, terms) {
+  const lower = sentence.toLowerCase();
+  return terms.reduce((score, t) => (lower.includes(t) ? score + 1 : score), 0);
+}
+
+function buildExtractiveAnswer(query, sources, depth) {
+  const terms = significantTerms(query);
+  const maxSentences = ANSWER_SENTENCE_COUNT[depth] || 4;
+
+  const candidates = [];
+  for (const s of sources) {
+    const sentences = splitSentences(s.fullText || s.snippet || "");
+    for (const sentence of sentences) {
+      const score = scoreSentence(sentence, terms);
+      if (score === 0) continue;
+      candidates.push({ sentence, score: score + (s.fullTextFetched ? 0.5 : 0), sourceId: s.id });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  const picked = [];
+  const perSourceCount = {};
+  const seenSentences = new Set();
+  for (const c of candidates) {
+    if (picked.length >= maxSentences) break;
+    const countForSource = perSourceCount[c.sourceId] || 0;
+    if (countForSource >= MAX_SENTENCES_PER_SOURCE) continue;
+    const key = c.sentence.toLowerCase().slice(0, 50);
+    if (seenSentences.has(key)) continue;
+    seenSentences.add(key);
+    perSourceCount[c.sourceId] = countForSource + 1;
+    picked.push(c);
+  }
+
+  if (picked.length === 0) {
+    return sources.length > 0
+      ? `No sentence in the retrieved sources directly matched "${query}" closely enough to extract — see the sources below for the raw material found.`
+      : `No live search results were found for "${query}". Try rephrasing the query, or forcing a deeper \`depth\`.`;
+  }
+
+  const lines = picked.map((p) => `- ${p.sentence} [${p.sourceId}]`);
+  return `Based on ${picked.length} live source${picked.length > 1 ? "s" : ""}:\n\n${lines.join("\n")}`;
+}
+
 function buildReportMarkdown({
   query, depth, requestedDepth, searchesPlanned, searchesUsed, cacheHits,
   quota, tokenQuota, tokenUsage, warnings, answer, sources, groundedInLiveResults,
 }) {
   const sourceLines = sources.length
     ? sources.map((s) => `${s.id}. [${s.title}](${s.url})${s.publishedDate ? ` — ${s.publishedDate}` : ""}${s.fullTextFetched ? " _(full text)_" : ""}\n   > ${(s.fullText || s.snippet).replace(/\n/g, " ").slice(0, 400)}`).join("\n\n")
-    : "_No live sources available — answered from the model's own knowledge._";
+    : "_No live sources were found for this query._";
 
   const warningLines = warnings.length ? warnings.map((w) => `- ⚠️ ${w}`).join("\n") : "- none";
   const depthLine = requestedDepth !== depth ? `${requestedDepth} → downgraded to ${depth} (quota protection)` : depth;
@@ -570,8 +637,9 @@ if (sweepInterval.unref) sweepInterval.unref();
 // ---------------------------------------------------------------------------
 
 /**
- * `apiKey` overrides (langsearchApiKey / sarvamApiKey) may be passed
- * per-request, same convention as the rest of this repo.
+ * `apiKey` override (langsearchApiKey) may be passed per-request, same
+ * convention as the rest of this repo. WaveSearch talks to LangSearch
+ * only — no other agent's key or service is involved anywhere below.
  */
 async function _researchCore(query, {
   depth: explicitDepth,
@@ -579,7 +647,6 @@ async function _researchCore(query, {
   maxResultsPerSearch = 5,
   maxSources = 15,
   langsearchApiKey,
-  sarvamApiKey,
 } = {}) {
   const requestedDepth = classifyDepth(query, explicitDepth);
   const { effectiveDepth: depth, warnings } = applyQuotaProtections(requestedDepth);
@@ -610,26 +677,25 @@ async function _researchCore(query, {
 
   const groundedInLiveResults = sources.length > 0;
   const tokenBudget = TOKEN_BUDGETS[depth];
-  const { context } = groundedInLiveResults ? buildContext(sources, tokenBudget) : { context: undefined };
+  const { contextTokens } = buildContext(sources, tokenBudget);
 
-  const answerData = await sarvam.aiAnswer(query, { context, apiKey: sarvamApiKey });
+  const answer = buildExtractiveAnswer(query, sources, depth);
 
-  const usage = answerData.usage || {};
   const tokenUsage = {
-    input: usage.prompt_tokens ?? usage.input_tokens ?? 0,
-    output: usage.completion_tokens ?? usage.output_tokens ?? 0,
-    total: usage.total_tokens ?? (usage.prompt_tokens ?? usage.input_tokens ?? 0) + (usage.completion_tokens ?? usage.output_tokens ?? 0),
+    input: contextTokens,
+    output: estimateTokens(answer),
+    total: contextTokens + estimateTokens(answer),
   };
   recordTokenUsage(tokenUsage.total);
 
   const quota = getQuota();
   const tokenQuota = getTokenQuota();
-  const tokenBudgetExceeded = tokenUsage.total > tokenBudget * 1.5; // allow headroom for the model's own output
+  const tokenBudgetExceeded = tokenUsage.total > tokenBudget * 1.5;
 
   const reportMarkdown = buildReportMarkdown({
     query, depth, requestedDepth, searchesPlanned, searchesUsed, cacheHits,
     quota, tokenQuota, tokenUsage, warnings,
-    answer: answerData.answer, sources, groundedInLiveResults,
+    answer, sources, groundedInLiveResults,
   });
 
   return {
@@ -646,7 +712,7 @@ async function _researchCore(query, {
     tokenUsage,
     tokenBudgetExceeded,
     warnings,
-    answer: answerData.answer,
+    answer,
     sources,
     sourceCount: sources.length,
     groundedInLiveResults,

@@ -47,7 +47,7 @@ app.get("/", (req, res) => {
         },
       },
       wavesearch: {
-        description: "Smart Search Budget System — classifies each query as simple/normal/deep/enterprise research, spends 1-50 LangSearch calls across multiple angles accordingly (capped by a self-managed daily quota), then has Sarvam AI synthesize one grounded answer plus a downloadable markdown sources report",
+        description: "Smart Search Budget System — classifies each query as simple/normal/deep/enterprise research, spends 1-50 LangSearch calls across multiple angles accordingly (capped by a self-managed daily quota), then extractively synthesizes one grounded answer directly from the live results plus a downloadable markdown sources report (standalone — no other agent or external LLM involved)",
         endpoints: {
           search: "/api/wavesearch/search?q=<query>&depth=<simple|normal|deep|enterprise>&searches=<n>",
           report: "/api/wavesearch/report?q=<query>&depth=<simple|normal|deep|enterprise>&download=<true|false>",

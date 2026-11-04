@@ -3,24 +3,23 @@ const wavesearch = require("../services/wavesearchService");
 
 const router = express.Router();
 
-// Allows keys to be supplied per-request, same convention used by search.js.
+// Allows a LangSearch key to be supplied per-request, same convention used
+// by search.js. WaveSearch does not call Sarvam AI or any other agent.
 function getKeys(req) {
   return {
     langsearchApiKey: req.get("LANGSEARCH_API_KEY") || req.get("x-langsearch-api-key"),
-    sarvamApiKey: req.get("SARVAM_API_KEY") || req.get("x-sarvam-api-key"),
   };
 }
 
 function parseOptions(req) {
   const { depth, searches, maxResultsPerSearch, maxSources } = req.query;
-  const { langsearchApiKey, sarvamApiKey } = getKeys(req);
+  const { langsearchApiKey } = getKeys(req);
   return {
     depth,
     searches: searches !== undefined ? Number(searches) : undefined,
     maxResultsPerSearch: maxResultsPerSearch !== undefined ? Number(maxResultsPerSearch) : undefined,
     maxSources: maxSources !== undefined ? Number(maxSources) : undefined,
     langsearchApiKey,
-    sarvamApiKey,
   };
 }
 

@@ -82,7 +82,7 @@ curl "http://localhost:5000/api/search/answer?q=What+is+retrieval+augmented+gene
 
 # WaveSearch Agent
 
-**WaveSearch Agent** is a brand-new, standalone agent — it does not share code with, or modify, the Wikipedia, GlobalWire, or Sarvam AI agents above. It researches a query across multiple LangSearch calls and has Sarvam AI synthesize one grounded answer, plus a downloadable markdown sources report.
+**WaveSearch Agent** is a brand-new, fully standalone agent — it does not share code with, depend on, or call the Wikipedia, GlobalWire, or Sarvam AI agents above. It only talks to LangSearch for live search; every answer is synthesized in-process, extractively, straight from those results, plus a downloadable markdown sources report.
 
 Its core feature is the **Smart Search Budget System**: every query is classified into a research depth, and that depth decides how many LangSearch calls get spent researching it from different angles (overview, statistics, pros/cons, expert opinion, case studies, etc.), so free-tier quota is never wasted on simple questions and is spent generously on real research requests.
 
@@ -95,13 +95,14 @@ Its core feature is the **Smart Search Budget System**: every query is classifie
 
 Depth is auto-detected from the query, or can be forced with `&depth=`. A built-in daily quota tracker (`WAVESEARCH_DAILY_SEARCH_QUOTA`, default 1000 searches/day, resets at UTC midnight) caps every request so a single "enterprise" call can never burn through the whole free LangSearch quota — if quota is low, the agent transparently spends fewer searches than the bucket would normally allow.
 
-Requires the same two free API keys as the Sarvam AI agent: `LANGSEARCH_API_KEY` and `SARVAM_API_KEY`, set in `.env`.
+Requires only one free API key — `LANGSEARCH_API_KEY`, set in `.env`. No other agent's key is needed; `SARVAM_API_KEY` is irrelevant to WaveSearch.
 
 ## Endpoints
 
-- `GET /api/wavesearch/search?q=<query>&depth=<simple|normal|deep|enterprise>&searches=<n>&maxResultsPerSearch=<n>&maxSources=<n>` — runs the budgeted research and returns the Sarvam AI answer, the deduped source list, and a markdown report
+- `GET /api/wavesearch/search?q=<query>&depth=<simple|normal|deep|enterprise>&searches=<n>&maxResultsPerSearch=<n>&maxSources=<n>` — runs the budgeted research and returns the extractively-synthesized answer, the deduped source list, and a markdown report
 - `GET /api/wavesearch/report?q=<query>&depth=<...>&download=<true|false>` — same research, returned as a downloadable `.md` report file (`Content-Disposition: attachment` by default; pass `download=false` to view inline)
-- `GET /api/wavesearch/quota` — current daily search quota status (`used`, `remaining`, `resetsAt`)
+- `GET /api/wavesearch/quota` — current daily search + token budget status (`used`, `remaining`, `resetsAt`)
+- `GET /api/wavesearch/resume/:jobId` — resume a research request that was queued because the daily quota was exhausted
 
 ## Example
 
