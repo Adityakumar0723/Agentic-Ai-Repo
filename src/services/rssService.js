@@ -3,7 +3,7 @@ const SOURCES = require("./sources");
 
 const parser = new Parser({ timeout: 2000 });
 const MAX_SEARCH_MS = 15000;
-const BATCH_SIZE = 300;
+const BATCH_SIZE = 500;
 
 function stripHtml(html) {
   if (!html) return null;
@@ -237,8 +237,42 @@ async function searchBatch(keys, limitPerSource, deadline, articles, failed, sea
       }
     });
 
-    if (articles.length >= 500 && Date.now() > deadline - 5000) break;
+    if (articles.length >= 800 && Date.now() > deadline - 5000) break;
   }
+}
+
+function matchText(text, words) {
+  return words.some((w) => text.includes(w));
+}
+
+function fuzzyMatch(text, words) {
+  return words.some((w) => {
+    if (text.includes(w)) return true;
+    if (w.length >= 4) {
+      const stem = w.endsWith("s") ? w.slice(0, -1) : w;
+      if (text.includes(stem)) return true;
+      const stem2 = w.endsWith("ing") ? w.slice(0, -3) : w.endsWith("ed") ? w.slice(0, -2) : null;
+      if (stem2 && stem2.length >= 3 && text.includes(stem2)) return true;
+    }
+    return false;
+  });
+}
+
+function scoreArticle(item, words) {
+  const text = [item.title || "", item.summary || "", item.content || ""].join(" ").toLowerCase();
+  let score = 0;
+  for (const w of words) {
+    if (text.includes(w)) score += 2;
+    else if (w.length >= 4) {
+      const stem = w.endsWith("s") ? w.slice(0, -1) : w;
+      if (text.includes(stem)) score += 1;
+    }
+  }
+  const titleText = (item.title || "").toLowerCase();
+  for (const w of words) {
+    if (titleText.includes(w)) score += 3;
+  }
+  return score;
 }
 
 async function searchArticles(query, limitPerSource = 15) {
@@ -252,7 +286,14 @@ async function searchArticles(query, limitPerSource = 15) {
   await searchBatch(keys, limitPerSource, deadline, articles, failed, searched);
 
   const words = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
-  if (words.length === 0) return { results: [], failed, searched };
+  if (words.length === 0) {
+    const latest = articles.sort((a, b) => {
+      const da = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
+      const db = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
+      return db - da;
+    });
+    return { results: latest.slice(0, 30), failed, searched };
+  }
 
   let matched = articles.filter((item) => {
     const text = [
@@ -260,8 +301,23 @@ async function searchArticles(query, limitPerSource = 15) {
       typeof item.summary === "string" ? item.summary : "",
       typeof item.content === "string" ? item.content : "",
     ].join(" ").toLowerCase();
-    return words.some((w) => text.includes(w));
+    return matchText(text, words);
   });
+
+  if (matched.length < 3) {
+    const fuzzyMatched = articles.filter((item) => {
+      const text = [
+        typeof item.title === "string" ? item.title : "",
+        typeof item.summary === "string" ? item.summary : "",
+        typeof item.content === "string" ? item.content : "",
+      ].join(" ").toLowerCase();
+      return fuzzyMatch(text, words);
+    });
+    const existingLinks = new Set(matched.map((m) => m.link));
+    for (const fm of fuzzyMatched) {
+      if (!existingLinks.has(fm.link)) matched.push(fm);
+    }
+  }
 
   if (matched.length === 0 && Date.now() < deadline - 3000) {
     const fallbackKeys = FALLBACK_SOURCES.filter((k) => SOURCES[k] && !searched.includes(k));
@@ -278,18 +334,20 @@ async function searchArticles(query, limitPerSource = 15) {
           typeof item.summary === "string" ? item.summary : "",
           typeof item.content === "string" ? item.content : "",
         ].join(" ").toLowerCase();
-        return words.some((w) => text.includes(w));
+        return fuzzyMatch(text, words);
       });
       if (matched.length === 0) matched = fbArticles.slice(0, 20);
     }
   }
 
+  if (matched.length === 0 && articles.length > 0) {
+    matched = articles.slice(0, 30);
+  }
+
   matched.sort((a, b) => {
-    const textA = [a.title || "", a.summary || "", a.content || ""].join(" ").toLowerCase();
-    const textB = [b.title || "", b.summary || "", b.content || ""].join(" ").toLowerCase();
-    const scoreA = words.filter((w) => textA.includes(w)).length;
-    const scoreB = words.filter((w) => textB.includes(w)).length;
-    if (scoreB !== scoreA) return scoreB - scoreA;
+    const sa = scoreArticle(a, words);
+    const sb = scoreArticle(b, words);
+    if (sb !== sa) return sb - sa;
     const dateA = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
     const dateB = b.publishedAt ? new Date(b.publishedAt).getTime() : 0;
     return dateB - dateA;
