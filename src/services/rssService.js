@@ -199,13 +199,6 @@ function queryRelevantKeys(query, allKeys) {
   return [...priorityRelevant, ...priorityRest, ...otherRelevant, ...otherRest];
 }
 
-const FALLBACK_SOURCES = [
-  "bbc", "bbc_world", "cnn", "cnn_world", "guardian", "nytimes", "npr",
-  "aljazeera", "reuters", "washpost", "bloomberg", "cnbc", "wsj",
-  "techcrunch", "verge", "wired", "ndtv", "toi", "hindu", "espn",
-  "coindesk", "variety", "arstechnica", "engadget", "zdnet", "cnet",
-];
-
 async function searchBatch(keys, limitPerSource, deadline, articles, failed, searched) {
   for (let i = 0; i < keys.length; i += BATCH_SIZE) {
     if (Date.now() >= deadline) break;
@@ -319,16 +312,16 @@ async function searchArticles(query, limitPerSource = 15) {
     }
   }
 
-  if (matched.length === 0 && Date.now() < deadline - 3000) {
-    const fallbackKeys = FALLBACK_SOURCES.filter((k) => SOURCES[k] && !searched.includes(k));
-    if (fallbackKeys.length > 0) {
+  if (matched.length < 5 && Date.now() < deadline - 2000) {
+    const remainingKeys = allKeys.filter((k) => !searched.includes(k));
+    if (remainingKeys.length > 0) {
       const fbArticles = [];
       const fbFailed = [];
       const fbSearched = [];
-      await searchBatch(fallbackKeys, limitPerSource, deadline, fbArticles, fbFailed, fbSearched);
+      await searchBatch(remainingKeys, limitPerSource, deadline, fbArticles, fbFailed, fbSearched);
       searched.push(...fbSearched);
       failed.push(...fbFailed);
-      matched = fbArticles.filter((item) => {
+      const fbMatched = fbArticles.filter((item) => {
         const text = [
           typeof item.title === "string" ? item.title : "",
           typeof item.summary === "string" ? item.summary : "",
@@ -336,7 +329,11 @@ async function searchArticles(query, limitPerSource = 15) {
         ].join(" ").toLowerCase();
         return fuzzyMatch(text, words);
       });
-      if (matched.length === 0) matched = fbArticles.slice(0, 20);
+      const existingLinks2 = new Set(matched.map((m) => m.link));
+      for (const fm of fbMatched) {
+        if (!existingLinks2.has(fm.link)) matched.push(fm);
+      }
+      if (matched.length === 0) matched = fbArticles.slice(0, 30);
     }
   }
 
