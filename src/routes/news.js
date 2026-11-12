@@ -5,6 +5,14 @@ const { CATEGORIES, getCategoryForSource, getSourcesForCategory, listCategories 
 
 const router = express.Router();
 
+const ROUTE_TIMEOUT = 14000;
+function safeRace(promise, ms, fallback) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 router.get("/sources", (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
@@ -79,15 +87,20 @@ router.get("/feed/:source", async (req, res) => {
 router.get("/all", async (req, res) => {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : 10;
-    const { articles, failed } = await rss.fetchAllSources(limit);
+    const data = await safeRace(
+      rss.fetchAllSources(limit),
+      ROUTE_TIMEOUT,
+      { articles: [], failed: [], searched: [], timedOut: true }
+    );
 
     res.json({
-      count: articles.length,
+      count: data.articles.length,
       sourcesTotal: rss.listSourceKeys().length,
-      sourcesOk: rss.listSourceKeys().length - failed.length,
-      sourcesFailed: failed.length,
-      articles,
-      ...(failed.length > 0 && { skippedSources: failed.map((f) => f.source) }),
+      sourcesSearched: data.searched ? data.searched.length : 0,
+      sourcesFailed: data.failed.length,
+      articles: data.articles,
+      ...(data.timedOut && { warning: "Partial results — use /search or /category for faster results" }),
+      ...(data.failed.length > 0 && { skippedSources: data.failed.slice(0, 10).map((f) => f.source) }),
     });
   } catch (err) {
     res.json({
@@ -108,11 +121,19 @@ router.get("/search", async (req, res) => {
   try {
     const parsedLimit = limit ? Number(limit) : 15;
 
-    const newsData = await rss.searchArticles(q, parsedLimit);
+    const newsData = await safeRace(
+      rss.searchArticles(q, parsedLimit),
+      ROUTE_TIMEOUT,
+      { results: [], failed: [], searched: [] }
+    );
 
     let redditData = { posts: [], error: null };
     if (newsData.results.length < 5) {
-      redditData = await reddit.searchReddit(q, parsedLimit);
+      redditData = await safeRace(
+        reddit.searchReddit(q, parsedLimit),
+        4000,
+        { posts: [], error: "Reddit timeout" }
+      );
     }
 
     res.json({

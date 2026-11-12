@@ -1,9 +1,25 @@
 const Parser = require("rss-parser");
 const SOURCES = require("./sources");
 
-const parser = new Parser({ timeout: 2000 });
-const MAX_SEARCH_MS = 15000;
-const BATCH_SIZE = 500;
+const parser = new Parser({ timeout: 1500 });
+const MAX_SEARCH_MS = 12000;
+const CONCURRENCY = 150;
+
+/* ── keyword index: built once at startup, instant source lookup ── */
+const _keywordIndex = {};
+const _allKeys = Object.keys(SOURCES);
+for (const key of _allKeys) {
+  const parts = key.toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
+  const urlParts = (SOURCES[key] || "").toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 3);
+  for (const p of [...parts, ...urlParts]) {
+    if (!_keywordIndex[p]) _keywordIndex[p] = [];
+    _keywordIndex[p].push(key);
+  }
+}
+
+/* ── feed cache: 3 min TTL, prevents re-fetching same source ── */
+const _feedCache = new Map();
+const CACHE_TTL = 180000;
 
 function stripHtml(html) {
   if (!html) return null;
@@ -50,88 +66,74 @@ async function fetchWithRetry(url, retries = 1) {
   }
 }
 
-function fetchOneSourceFast(source) {
+function fetchOneCached(source) {
   const feedUrl = SOURCES[source];
-  if (!feedUrl) return Promise.resolve({ source, items: [], ok: false });
+  if (!feedUrl) return Promise.resolve({ source, ok: false });
+
+  const cached = _feedCache.get(source);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    return Promise.resolve({ source, feed: cached.feed, ok: true, cached: true });
+  }
+
   return parser.parseURL(feedUrl)
-    .then((feed) => ({ source, feed, ok: true }))
+    .then((feed) => {
+      _feedCache.set(source, { feed, ts: Date.now() });
+      if (_feedCache.size > 5000) {
+        const oldest = _feedCache.keys().next().value;
+        _feedCache.delete(oldest);
+      }
+      return { source, feed, ok: true };
+    })
     .catch(() => ({ source, ok: false }));
 }
 
-function fetchOneSource(source) {
-  const feedUrl = SOURCES[source];
-  if (!feedUrl) return Promise.resolve({ source, items: [], ok: false });
-  return fetchWithRetry(feedUrl)
-    .then((feed) => ({ source, feed, ok: true }))
-    .catch((err) => ({ source, ok: false, error: err.message }));
-}
-
-async function fetchSource(source) {
-  const feedUrl = SOURCES[source];
-  if (!feedUrl) {
-    return { source, error: `Unknown news source "${source}"`, status: 404 };
-  }
-
-  try {
-    const feed = await fetchWithRetry(feedUrl);
-    return feed.items.map((item) => normalizeItem(item, source, feed.title));
-  } catch (err) {
-    return { source, error: err.message, skipped: true };
-  }
-}
-
-async function fetchSourcesBatch(keys, limitPerSource, deadlineMs) {
+/* ── concurrency pool: max N active connections, rapid recycling ── */
+async function poolScan(keys, limitPerSource, deadline) {
   const articles = [];
   const failed = [];
   const searched = [];
+  let idx = 0;
 
-  for (let i = 0; i < keys.length; i += BATCH_SIZE) {
-    if (deadlineMs && Date.now() >= deadlineMs) break;
-
-    const batch = keys.slice(i, i + BATCH_SIZE);
-    const timeLeft = deadlineMs ? deadlineMs - Date.now() : 30000;
-    if (timeLeft <= 0) break;
-
-    const batchPromises = batch.map((source) => fetchOneSource(source));
-    const batchTimeout = Math.min(timeLeft, 3000);
-    const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), batchTimeout));
-    const raceResult = await Promise.race([Promise.allSettled(batchPromises), timer]);
-
-    if (raceResult === "timeout") {
-      const settled = await Promise.allSettled(batchPromises.map((p) =>
-        Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false, source: "timeout" }), 100))])
-      ));
-      settled.forEach((result, idx) => {
-        const source = batch[idx];
-        searched.push(source);
-        if (result.status === "fulfilled" && result.value.ok && result.value.feed) {
-          const items = result.value.feed.items
-            .slice(0, limitPerSource)
-            .map((item) => normalizeItem(item, source, result.value.feed.title));
-          articles.push(...items);
-        } else {
-          failed.push({ source, error: "timeout" });
-        }
-      });
-      continue;
-    }
-
-    raceResult.forEach((result, idx) => {
-      const source = batch[idx];
+  async function worker() {
+    while (idx < keys.length && Date.now() < deadline) {
+      const i = idx++;
+      const source = keys[i];
+      if (!source) break;
       searched.push(source);
-      if (result.status === "fulfilled" && result.value.ok && result.value.feed) {
-        const items = result.value.feed.items
+
+      const timeLeft = deadline - Date.now();
+      if (timeLeft <= 0) break;
+
+      const killTimer = Math.min(timeLeft, 1500);
+      const result = await Promise.race([
+        fetchOneCached(source),
+        new Promise((r) => setTimeout(() => r({ source, ok: false, timeout: true }), killTimer)),
+      ]);
+
+      if (result.ok && result.feed) {
+        const items = result.feed.items
           .slice(0, limitPerSource)
-          .map((item) => normalizeItem(item, source, result.value.feed.title));
+          .map((item) => normalizeItem(item, source, result.feed.title));
         articles.push(...items);
       } else {
-        const errMsg = result.status === "fulfilled" ? result.value.error : result.reason?.message;
-        failed.push({ source, error: errMsg || "unknown" });
+        failed.push({ source, error: result.timeout ? "timeout" : "failed" });
       }
-    });
+    }
   }
 
+  const workers = [];
+  const poolSize = Math.min(CONCURRENCY, keys.length);
+  for (let w = 0; w < poolSize; w++) {
+    workers.push(worker());
+  }
+  await Promise.allSettled(workers);
+
   return { articles, failed, searched };
+}
+
+/* ── legacy batch for fetchSourcesBatch (category/feed endpoints) ── */
+async function fetchSourcesBatch(keys, limitPerSource, deadlineMs) {
+  return poolScan(keys, limitPerSource, deadlineMs);
 }
 
 const PRIORITY_PREFIXES = [
@@ -168,70 +170,55 @@ function prioritizeKeys(keys) {
 }
 
 async function fetchAllSources(limitPerSource = 10) {
-  const keys = prioritizeKeys(Object.keys(SOURCES));
+  const keys = prioritizeKeys(_allKeys);
   const deadline = Date.now() + MAX_SEARCH_MS;
-  const { articles, failed, searched } = await fetchSourcesBatch(keys, limitPerSource, deadline);
-  return { articles, failed, searched };
+  return poolScan(keys, limitPerSource, deadline);
 }
 
 async function fetchMultipleSources(keys, limitPerSource = 10) {
   const deadline = Date.now() + MAX_SEARCH_MS;
-  return fetchSourcesBatch(keys, limitPerSource, deadline);
+  return poolScan(keys, limitPerSource, deadline);
 }
 
-function queryRelevantKeys(query, allKeys) {
-  const q = query.toLowerCase();
-  const words = q.split(/\s+/).filter((w) => w.length >= 2);
-  const priorityRelevant = [];
-  const priorityRest = [];
-  const otherRelevant = [];
-  const otherRest = [];
-  for (const key of allKeys) {
-    const kl = key.toLowerCase();
-    const url = (SOURCES[key] || "").toLowerCase();
-    const isPriority = PRIORITY_PREFIXES.some((p) => kl.startsWith(p));
-    const isRelevant = words.some((w) => kl.includes(w) || url.includes(w));
-    if (isPriority && isRelevant) priorityRelevant.push(key);
-    else if (isPriority) priorityRest.push(key);
-    else if (isRelevant) otherRelevant.push(key);
-    else otherRest.push(key);
-  }
-  return [...priorityRelevant, ...priorityRest, ...otherRelevant, ...otherRest];
-}
+/* ── smart source selection using keyword index ── */
+function getRelevantKeys(query) {
+  const words = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
+  const scoreMap = new Map();
 
-async function searchBatch(keys, limitPerSource, deadline, articles, failed, searched) {
-  for (let i = 0; i < keys.length; i += BATCH_SIZE) {
-    if (Date.now() >= deadline) break;
-
-    const batch = keys.slice(i, i + BATCH_SIZE);
-    const timeLeft = deadline - Date.now();
-    if (timeLeft <= 0) break;
-
-    const batchPromises = batch.map((source) => fetchOneSourceFast(source));
-    const batchTimeout = Math.min(timeLeft, 2500);
-    const timer = new Promise((resolve) => setTimeout(() => resolve("timeout"), batchTimeout));
-    const raceResult = await Promise.race([Promise.allSettled(batchPromises), timer]);
-
-    const results = raceResult === "timeout"
-      ? await Promise.allSettled(batchPromises.map((p) =>
-          Promise.race([p, new Promise((r) => setTimeout(() => r({ ok: false }), 100))])))
-      : raceResult;
-
-    results.forEach((result, idx) => {
-      const source = batch[idx];
-      searched.push(source);
-      if (result.status === "fulfilled" && result.value.ok && result.value.feed) {
-        const items = result.value.feed.items
-          .slice(0, limitPerSource)
-          .map((item) => normalizeItem(item, source, result.value.feed.title));
-        articles.push(...items);
-      } else {
-        failed.push({ source, error: "skipped" });
+  for (const w of words) {
+    const exact = _keywordIndex[w] || [];
+    for (const k of exact) {
+      scoreMap.set(k, (scoreMap.get(k) || 0) + 3);
+    }
+    if (w.length >= 4) {
+      const stem = w.endsWith("s") ? w.slice(0, -1) : w;
+      const stemKeys = _keywordIndex[stem] || [];
+      for (const k of stemKeys) {
+        if (!scoreMap.has(k)) scoreMap.set(k, 0);
+        scoreMap.set(k, scoreMap.get(k) + 1);
       }
-    });
-
-    if (articles.length >= 800 && Date.now() > deadline - 5000) break;
+    }
   }
+
+  const relevant = [...scoreMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([k]) => k);
+
+  const relevantSet = new Set(relevant);
+  const priority = [];
+  const rest = [];
+  for (const k of _allKeys) {
+    if (!relevantSet.has(k)) {
+      const kl = k.toLowerCase();
+      if (PRIORITY_PREFIXES.some((p) => kl.startsWith(p))) {
+        priority.push(k);
+      } else {
+        rest.push(k);
+      }
+    }
+  }
+
+  return [...relevant, ...priority, ...rest];
 }
 
 function matchText(text, words) {
@@ -263,20 +250,16 @@ function scoreArticle(item, words) {
   }
   const titleText = (item.title || "").toLowerCase();
   for (const w of words) {
-    if (titleText.includes(w)) score += 3;
+    if (titleText.includes(w)) score += 5;
   }
   return score;
 }
 
 async function searchArticles(query, limitPerSource = 15) {
-  const allKeys = Object.keys(SOURCES);
-  const keys = queryRelevantKeys(query, allKeys);
+  const keys = getRelevantKeys(query);
   const deadline = Date.now() + MAX_SEARCH_MS;
-  const articles = [];
-  const failed = [];
-  const searched = [];
 
-  await searchBatch(keys, limitPerSource, deadline, articles, failed, searched);
+  const { articles, failed, searched } = await poolScan(keys, limitPerSource, deadline);
 
   const words = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
   if (words.length === 0) {
@@ -297,7 +280,7 @@ async function searchArticles(query, limitPerSource = 15) {
     return matchText(text, words);
   });
 
-  if (matched.length < 3) {
+  if (matched.length < 5) {
     const fuzzyMatched = articles.filter((item) => {
       const text = [
         typeof item.title === "string" ? item.title : "",
@@ -309,31 +292,6 @@ async function searchArticles(query, limitPerSource = 15) {
     const existingLinks = new Set(matched.map((m) => m.link));
     for (const fm of fuzzyMatched) {
       if (!existingLinks.has(fm.link)) matched.push(fm);
-    }
-  }
-
-  if (matched.length < 5 && Date.now() < deadline - 2000) {
-    const remainingKeys = allKeys.filter((k) => !searched.includes(k));
-    if (remainingKeys.length > 0) {
-      const fbArticles = [];
-      const fbFailed = [];
-      const fbSearched = [];
-      await searchBatch(remainingKeys, limitPerSource, deadline, fbArticles, fbFailed, fbSearched);
-      searched.push(...fbSearched);
-      failed.push(...fbFailed);
-      const fbMatched = fbArticles.filter((item) => {
-        const text = [
-          typeof item.title === "string" ? item.title : "",
-          typeof item.summary === "string" ? item.summary : "",
-          typeof item.content === "string" ? item.content : "",
-        ].join(" ").toLowerCase();
-        return fuzzyMatch(text, words);
-      });
-      const existingLinks2 = new Set(matched.map((m) => m.link));
-      for (const fm of fbMatched) {
-        if (!existingLinks2.has(fm.link)) matched.push(fm);
-      }
-      if (matched.length === 0) matched = fbArticles.slice(0, 30);
     }
   }
 
@@ -353,12 +311,26 @@ async function searchArticles(query, limitPerSource = 15) {
   return { results: matched, failed, searched };
 }
 
+async function fetchSource(source) {
+  const feedUrl = SOURCES[source];
+  if (!feedUrl) {
+    return { source, error: `Unknown news source "${source}"`, status: 404 };
+  }
+
+  try {
+    const feed = await fetchWithRetry(feedUrl);
+    return feed.items.map((item) => normalizeItem(item, source, feed.title));
+  } catch (err) {
+    return { source, error: err.message, skipped: true };
+  }
+}
+
 function listSources() {
   return Object.entries(SOURCES).map(([key, url]) => ({ key, url }));
 }
 
 function listSourceKeys() {
-  return Object.keys(SOURCES);
+  return _allKeys;
 }
 
 module.exports = {
