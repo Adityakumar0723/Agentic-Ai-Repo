@@ -5,16 +5,22 @@ const parser = new Parser({ timeout: 1500 });
 const MAX_SEARCH_MS = 12000;
 const CONCURRENCY = 150;
 
-/* ── keyword index: built once at startup, instant source lookup ── */
-const _keywordIndex = {};
+/* ── keyword index: lazy-built on first search, instant after that ── */
+let _keywordIndex = null;
 const _allKeys = Object.keys(SOURCES);
-for (const key of _allKeys) {
-  const parts = key.toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
-  const urlParts = (SOURCES[key] || "").toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 3);
-  for (const p of [...parts, ...urlParts]) {
-    if (!_keywordIndex[p]) _keywordIndex[p] = [];
-    _keywordIndex[p].push(key);
+
+function getKeywordIndex() {
+  if (_keywordIndex) return _keywordIndex;
+  _keywordIndex = {};
+  for (const key of _allKeys) {
+    const parts = key.toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 2);
+    const urlParts = (SOURCES[key] || "").toLowerCase().replace(/[^a-z0-9]/g, " ").split(/\s+/).filter((w) => w.length >= 3);
+    for (const p of [...parts, ...urlParts]) {
+      if (!_keywordIndex[p]) _keywordIndex[p] = [];
+      _keywordIndex[p].push(key);
+    }
   }
+  return _keywordIndex;
 }
 
 /* ── feed cache: 3 min TTL, prevents re-fetching same source ── */
@@ -182,17 +188,18 @@ async function fetchMultipleSources(keys, limitPerSource = 10) {
 
 /* ── smart source selection using keyword index ── */
 function getRelevantKeys(query) {
+  const idx = getKeywordIndex();
   const words = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 2);
   const scoreMap = new Map();
 
   for (const w of words) {
-    const exact = _keywordIndex[w] || [];
+    const exact = idx[w] || [];
     for (const k of exact) {
       scoreMap.set(k, (scoreMap.get(k) || 0) + 3);
     }
     if (w.length >= 4) {
       const stem = w.endsWith("s") ? w.slice(0, -1) : w;
-      const stemKeys = _keywordIndex[stem] || [];
+      const stemKeys = idx[stem] || [];
       for (const k of stemKeys) {
         if (!scoreMap.has(k)) scoreMap.set(k, 0);
         scoreMap.set(k, scoreMap.get(k) + 1);
